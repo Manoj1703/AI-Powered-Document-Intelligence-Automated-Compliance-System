@@ -1,0 +1,101 @@
+from fastapi import APIRouter, HTTPException
+from bson import ObjectId
+
+try:
+    from app.database import get_collection
+except ModuleNotFoundError:
+    from database import get_collection
+
+router = APIRouter(prefix="/api", tags=["documents"])
+
+
+def _flatten_from_analysis(document: dict) -> dict:
+    analysis = document.get("analysis") or {}
+    metadata = analysis.get("metadata") or {}
+
+    return {
+        "id": str(document["_id"]),
+        "filename": document.get("filename"),
+        "content_length": document.get("content_length"),
+        "uploaded_at": document.get("uploaded_at"),
+        "created_at": document.get("created_at"),
+        "title": analysis.get("title", "Unknown"),
+        "document_type": analysis.get("document_type") or metadata.get("document_type", "Unknown"),
+        "author": analysis.get("author", "Unknown"),
+        "date": analysis.get("date", ""),
+        "summary": analysis.get("summary", ""),
+        "detailed_summary": analysis.get("detailed_summary", ""),
+        "metadata": metadata,
+        "key_clauses": analysis.get("key_clauses", []),
+        "obligations": analysis.get("obligations", []),
+        "risks": analysis.get("risks", []),
+        "risk_types": analysis.get("risk_types", []),
+        "compliance_issues": analysis.get("compliance_issues", []),
+        "overall_risk_level": analysis.get("overall_risk_level", "Unknown"),
+        "analysis": analysis,
+    }
+
+
+@router.get("/documents")
+def get_all_documents():
+    collection = get_collection()
+    docs = list(
+        collection.find(
+            {},
+            {
+                "_id": 1,
+                "filename": 1,
+                "analysis.title": 1,
+                "analysis.document_type": 1,
+                "analysis.overall_risk_level": 1,
+            },
+        )
+    )
+
+    results = []
+    for doc in docs:
+        analysis = doc.get("analysis") or {}
+        risk_level = analysis.get("overall_risk_level", "Unknown")
+
+        results.append(
+            {
+                "id": str(doc["_id"]),
+                "filename": doc.get("filename"),
+                "title": analysis.get("title", "Unknown"),
+                "document_type": analysis.get("document_type", "Unknown"),
+                "overall_risk_level": risk_level,
+            }
+        )
+
+    return results
+
+
+@router.get("/documents/{doc_id}")
+def get_document_by_id(doc_id: str):
+    collection = get_collection()
+
+    try:
+        document = collection.find_one({"_id": ObjectId(doc_id)})
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return _flatten_from_analysis(document)
+
+
+@router.delete("/documents/{doc_id}")
+def delete_document_by_id(doc_id: str):
+    collection = get_collection()
+
+    try:
+        object_id = ObjectId(doc_id)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    deleted = collection.delete_one({"_id": object_id})
+    if deleted.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {"message": "Document deleted successfully", "document_id": doc_id}
