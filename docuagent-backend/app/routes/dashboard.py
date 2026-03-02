@@ -3,7 +3,9 @@ from fastapi import APIRouter
 # Import collection accessor with fallback for alternate execution paths.
 try:
     from app.database import get_collection
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    if exc.name not in {"app", "app.database"}:
+        raise
     from database import get_collection
 
 # Dashboard endpoints are grouped under /api/dashboard.

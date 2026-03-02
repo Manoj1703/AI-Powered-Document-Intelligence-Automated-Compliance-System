@@ -11,7 +11,10 @@ import traceback
 # Fallback import supports running in different project structures.
 try:
     from app.routes import dashboard, documents, upload
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    # Only use fallback when package-style import is unavailable.
+    if exc.name not in {"app", "app.routes"}:
+        raise
     from routes import dashboard, documents, upload
 
 # Basic app details shown in API docs.

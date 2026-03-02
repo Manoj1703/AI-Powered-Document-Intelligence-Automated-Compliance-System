@@ -3,7 +3,9 @@ from bson import ObjectId
 
 try:
     from app.database import get_collection
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    if exc.name not in {"app", "app.database"}:
+        raise
     from database import get_collection
 
 router = APIRouter(prefix="/api", tags=["documents"])

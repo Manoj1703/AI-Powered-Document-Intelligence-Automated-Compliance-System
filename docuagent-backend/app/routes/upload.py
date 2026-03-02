@@ -18,7 +18,15 @@ try:
     from app.database import get_collection
     from app.services.ai_service import analyze_document
     from app.services.extractors import ALLOWED_EXTENSIONS, extract_text_by_extension
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    if exc.name not in {
+        "app",
+        "app.database",
+        "app.services",
+        "app.services.ai_service",
+        "app.services.extractors",
+    }:
+        raise
     from database import get_collection
     from services.ai_service import analyze_document
     from services.extractors import ALLOWED_EXTENSIONS, extract_text_by_extension
