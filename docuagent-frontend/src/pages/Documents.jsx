@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DocumentTable from "../components/DocumentTable";
 import { RISK_FILTERS, prettyRisk } from "../utils";
 
@@ -24,6 +24,12 @@ function Documents({ documents, loading, onView, onDelete }) {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <section className="page-stack">

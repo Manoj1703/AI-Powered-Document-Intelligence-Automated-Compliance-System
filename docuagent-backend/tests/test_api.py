@@ -8,8 +8,10 @@ from fastapi.testclient import TestClient
 # Keep app imports stable in tests without requiring real services.
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("SHOW_TRACEBACK", "false")
+os.environ.setdefault("JWT_SECRET", "test-secret-for-ci-at-least-32-chars")
 
 from app.main import app
+from app.auth import get_current_user
 
 
 class InsertResult:
@@ -18,6 +20,9 @@ class InsertResult:
 
 
 class UploadCollection:
+    def find_one(self, _query, _projection=None):
+        return None
+
     def insert_one(self, document):
         return InsertResult(ObjectId("65f1f1f1f1f1f1f1f1f1f1f1"))
 
@@ -38,14 +43,25 @@ class DashboardCollection:
     def count_documents(self, query):
         if query == {}:
             return 7
-        level = query["$or"][0]["overall_risk_level"]
+        clauses = query.get("$and", [])
+        risk_clause = next((item for item in clauses if isinstance(item, dict) and "$or" in item), {})
+        level = risk_clause.get("$or", [{}])[0].get("overall_risk_level")
         return {"High": 2, "Medium": 3, "Low": 2}[level]
 
 
 class ApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        app.dependency_overrides[get_current_user] = lambda: {
+            "_id": ObjectId("65f1f1f1f1f1f1f1f1f1f1f2"),
+            "email": "admin@example.com",
+            "role": "admin",
+        }
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.pop(get_current_user, None)
 
     def test_healthcheck(self):
         response = self.client.get("/")
@@ -140,6 +156,7 @@ class ApiTests(unittest.TestCase):
             {
                 "total_documents": 7,
                 "risk_breakdown": {"high": 2, "medium": 3, "low": 2},
+                "scope": "global",
             },
         )
 

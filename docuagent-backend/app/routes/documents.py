@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from bson import ObjectId
 
 try:
+    from app.auth import get_current_user
     from app.database import get_collection
 except ModuleNotFoundError as exc:
-    if exc.name not in {"app", "app.database"}:
+    if exc.name not in {"app", "app.database", "app.auth"}:
         raise
+    from auth import get_current_user
     from database import get_collection
 
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -34,23 +36,40 @@ def _flatten_from_analysis(document: dict) -> dict:
         "risk_types": analysis.get("risk_types", []),
         "compliance_issues": analysis.get("compliance_issues", []),
         "overall_risk_level": analysis.get("overall_risk_level", "Unknown"),
-        "analysis": analysis,
     }
 
 
+def _sort_documents_latest_first(docs: list[dict]) -> list[dict]:
+    def key(doc: dict):
+        return (
+            doc.get("uploaded_at") or doc.get("created_at") or 0,
+            doc.get("_id"),
+        )
+
+    return sorted(docs, key=key, reverse=True)
+
+
 @router.get("/documents")
-def get_all_documents():
+def get_all_documents(current_user: dict = Depends(get_current_user)):
     collection = get_collection()
-    docs = list(
-        collection.find(
-            {},
-            {
-                "_id": 1,
-                "filename": 1,
-                "analysis.title": 1,
-                "analysis.document_type": 1,
-                "analysis.overall_risk_level": 1,
-            },
+    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    query = {}
+    if not is_admin:
+        query = {"uploaded_by": current_user.get("_id")}
+    docs = _sort_documents_latest_first(
+        list(
+            collection.find(
+                query,
+                {
+                    "_id": 1,
+                    "filename": 1,
+                    "analysis.title": 1,
+                    "analysis.document_type": 1,
+                    "analysis.overall_risk_level": 1,
+                    "uploaded_at": 1,
+                    "created_at": 1,
+                },
+            )
         )
     )
 
@@ -66,6 +85,8 @@ def get_all_documents():
                 "title": analysis.get("title", "Unknown"),
                 "document_type": analysis.get("document_type", "Unknown"),
                 "overall_risk_level": risk_level,
+                "uploaded_at": doc.get("uploaded_at"),
+                "created_at": doc.get("created_at"),
             }
         )
 
@@ -73,13 +94,18 @@ def get_all_documents():
 
 
 @router.get("/documents/{doc_id}")
-def get_document_by_id(doc_id: str):
-    collection = get_collection()
-
+def get_document_by_id(doc_id: str, current_user: dict = Depends(get_current_user)):
     try:
-        document = collection.find_one({"_id": ObjectId(doc_id)})
+        object_id = ObjectId(doc_id)
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Invalid document ID") from exc
+
+    collection = get_collection()
+    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    query = {"_id": object_id}
+    if not is_admin:
+        query["uploaded_by"] = current_user.get("_id")
+    document = collection.find_one(query)
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -88,15 +114,18 @@ def get_document_by_id(doc_id: str):
 
 
 @router.delete("/documents/{doc_id}")
-def delete_document_by_id(doc_id: str):
-    collection = get_collection()
-
+def delete_document_by_id(doc_id: str, current_user: dict = Depends(get_current_user)):
     try:
         object_id = ObjectId(doc_id)
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Invalid document ID") from exc
 
-    deleted = collection.delete_one({"_id": object_id})
+    collection = get_collection()
+    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    query = {"_id": object_id}
+    if not is_admin:
+        query["uploaded_by"] = current_user.get("_id")
+    deleted = collection.delete_one(query)
     if deleted.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Document not found")
 

@@ -2,7 +2,7 @@ import React from "react";
 import RiskCard from "../components/RiskCard";
 import { formatDate, normalizeRisk, prettyRisk } from "../utils";
 
-function Dashboard({ stats, documents, onNavigate, onQuickUpload }) {
+function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload }) {
   const high = Number(stats?.risk_breakdown?.high) || 0;
   const medium = Number(stats?.risk_breakdown?.medium) || 0;
   const low = Number(stats?.risk_breakdown?.low) || 0;
@@ -17,7 +17,7 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload }) {
   const recent = [...documents].slice(0, 5);
 
   return (
-    <section className="page-stack">
+    <section className="page-stack dashboard-page">
       <div className="stats-grid">
         <RiskCard label="Total Documents" value={stats?.total_documents ?? 0} />
         <RiskCard label="High Risk" value={high} risk="high" />
@@ -31,7 +31,7 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload }) {
             <h3>Risk Distribution</h3>
           </div>
 
-          <svg viewBox="0 0 40 40" className="pie-chart" aria-label="Risk distribution">
+          <svg viewBox="0 0 40 40" className="pie-chart pie-draw" aria-label="Risk distribution">
             {(() => {
               let offset = 0;
               return slices.map((slice) => {
@@ -48,6 +48,7 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload }) {
                     strokeWidth="6"
                     strokeDasharray={`${segment} ${100 - segment}`}
                     strokeDashoffset={-offset}
+                    style={{ "--dash": segment, "--gap": 100 - segment }}
                   />
                 );
                 offset += segment;
@@ -71,9 +72,11 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload }) {
           <div className="panel-head">
             <h3>Quick Actions</h3>
           </div>
-          <button className="primary-button" type="button" onClick={onQuickUpload}>
-            Quick Upload
-          </button>
+          {canUpload && (
+            <button className="primary-button" type="button" onClick={onQuickUpload}>
+              Quick Upload
+            </button>
+          )}
           <button className="ghost-button" type="button" onClick={() => onNavigate("documents")}>
             Open Documents
           </button>

@@ -28,8 +28,8 @@ function DocumentTable({ documents, loading, onView, onDelete }) {
           )}
 
           {!loading &&
-            documents.map((doc) => (
-              <tr key={doc.id}>
+            documents.map((doc, index) => (
+              <tr key={doc.id} className="doc-row-enter" style={{ animationDelay: `${index * 60}ms` }}>
                 <td>{doc.filename || "Unknown"}</td>
                 <td>{doc.title || "Unknown"}</td>
                 <td>{doc.document_type || "Unknown"}</td>

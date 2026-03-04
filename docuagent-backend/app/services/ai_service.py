@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from dotenv import load_dotenv
+import httpx
 from openai import OpenAI
 
 # Load .env values so local development can set API credentials.
@@ -14,12 +15,16 @@ load_dotenv()
 api_key = os.getenv("API_TOKEN") or os.getenv("OPENAI_API_KEY")
 api_base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL")
 openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+if api_base_url and "openrouter.ai" in api_base_url and "/" not in openai_model:
+    openai_model = f"openai/{openai_model}"
 
 # Create OpenAI client only if key is available.
 client = (
     OpenAI(
         api_key=api_key,
         base_url=api_base_url,
+        # Ignore broken shell/system proxy env vars unless explicitly needed.
+        http_client=httpx.Client(trust_env=False),
     )
     if api_key
     else None

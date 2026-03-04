@@ -8,7 +8,7 @@ function predictRisk(file) {
   return "Low";
 }
 
-function Upload({ uploading, onUpload, uploadHistory = [] }) {
+function Upload({ uploading, onUpload, uploadHistory = [], onOpenDocuments, onOpenHistoryItem }) {
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -71,7 +71,12 @@ function Upload({ uploading, onUpload, uploadHistory = [] }) {
             <>
               <p className="muted">Pre-analysis estimate</p>
               <p className="prediction">Predicted Risk: {prettyRisk(prediction)}</p>
-              <button className="primary-button" type="button" disabled={uploading} onClick={handleAnalyze}>
+              <button
+                className={`primary-button ${uploading ? "uploading-shimmer" : ""}`}
+                type="button"
+                disabled={uploading}
+                onClick={handleAnalyze}
+              >
                 {uploading ? "Uploading..." : "Upload & Analyze"}
               </button>
             </>
@@ -80,13 +85,23 @@ function Upload({ uploading, onUpload, uploadHistory = [] }) {
       </div>
 
       <article className="glass-card panel">
-        <h3>Upload History</h3>
+        <div className="panel-head">
+          <h3>Upload History</h3>
+          <button type="button" className="ghost-button" onClick={onOpenDocuments}>
+            Go to My Documents
+          </button>
+        </div>
         <div className="history-list">
           {uploadHistory.length === 0 && <p className="muted">No uploads yet.</p>}
           {uploadHistory.map((item, idx) => (
             <div className="history-item" key={`${item.filename}-${idx}`}>
-              <strong>{item.filename}</strong>
-              <span>{item.time}</span>
+              <div>
+                <strong>{item.filename}</strong>
+                <p className="muted">{item.time}</p>
+              </div>
+              <button type="button" className="ghost-button" onClick={() => onOpenHistoryItem?.(item)}>
+                Open in My Documents
+              </button>
             </div>
           ))}
         </div>

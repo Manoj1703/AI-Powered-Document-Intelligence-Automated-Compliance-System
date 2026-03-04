@@ -1,11 +1,23 @@
-export const NAV_ITEMS = [
+export const ADMIN_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard" },
-  { key: "upload", label: "Upload Document" },
-  { key: "documents", label: "Documents" },
+  { key: "documents", label: "All Documents" },
+  { key: "users", label: "Users Management" },
   { key: "analytics", label: "Risk Analytics" },
+  { key: "activity", label: "Activity Logs" },
   { key: "settings", label: "Settings" },
-  { key: "activity", label: "Activity Log" },
 ];
+
+export const USER_NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "documents", label: "My Documents" },
+  { key: "upload", label: "Upload Document" },
+  { key: "analytics", label: "My Risk Reports" },
+  { key: "settings", label: "Settings" },
+];
+
+export function getNavItems(role) {
+  return role === "admin" ? ADMIN_NAV_ITEMS : USER_NAV_ITEMS;
+}
 
 export const RISK_FILTERS = ["All", "High", "Medium", "Low", "Unknown"];
 
@@ -22,6 +34,21 @@ export function prettyRisk(value) {
 
 export function hasItems(items) {
   return Array.isArray(items) && items.length > 0;
+}
+
+function uniqueStrings(items) {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const value = String(item ?? "").trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+  }
+  return result;
 }
 
 export function formatDate(value) {
@@ -51,6 +78,29 @@ export function normalizeDetailPayload(response) {
       ? source.metadata
       : {};
 
+  const keyTopics = uniqueStrings([
+    ...(Array.isArray(metadata.key_topics) ? metadata.key_topics : []),
+  ]);
+  const keyClauses = uniqueStrings([
+    ...(Array.isArray(source.key_clauses) ? source.key_clauses : []),
+    ...(Array.isArray(base.key_clauses) ? base.key_clauses : []),
+  ]);
+  const obligations = uniqueStrings([
+    ...(Array.isArray(source.obligations) ? source.obligations : []),
+    ...(Array.isArray(base.obligations) ? base.obligations : []),
+  ]);
+  const complianceIssues = uniqueStrings([
+    ...(Array.isArray(source.compliance_issues) ? source.compliance_issues : []),
+    ...(Array.isArray(base.compliance_issues) ? base.compliance_issues : []),
+  ]);
+  const riskTypes = uniqueStrings([
+    ...(Array.isArray(source.risk_types) ? source.risk_types : []),
+    ...(Array.isArray(base.risk_types) ? base.risk_types : []),
+  ]);
+
+  const summary = source.summary || base.summary || "Not Available";
+  const detailedSummary = source.detailed_summary || base.detailed_summary || summary;
+
   return {
     id: base.id || "Not Available",
     filename: base.filename || "Not Available",
@@ -61,14 +111,14 @@ export function normalizeDetailPayload(response) {
     document_type: source.document_type || metadata.document_type || "Not Available",
     author: source.author || "Not Available",
     date: source.date || "Not Available",
-    summary: source.summary || "Not Available",
-    detailed_summary: source.detailed_summary || "Not Available",
-    key_topics: hasItems(metadata.key_topics) ? metadata.key_topics : [],
-    key_clauses: hasItems(source.key_clauses) ? source.key_clauses : [],
-    obligations: hasItems(source.obligations) ? source.obligations : [],
-    compliance_issues: hasItems(source.compliance_issues) ? source.compliance_issues : [],
+    summary,
+    detailed_summary: detailedSummary,
+    key_topics: keyTopics,
+    key_clauses: keyClauses,
+    obligations,
+    compliance_issues: complianceIssues,
     risks: hasItems(source.risks) ? source.risks : [],
-    risk_types: hasItems(source.risk_types) ? source.risk_types : [],
+    risk_types: riskTypes,
     overall_risk_level: source.overall_risk_level || base.overall_risk_level || "Unknown",
     confidence: source.confidence_score || Math.floor(80 + Math.random() * 18),
   };

@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   deleteDocumentById,
+  fetchCurrentUser,
   fetchDashboardStats,
   fetchDocumentById,
   fetchDocuments,
   fetchHealth,
+  fetchUsers,
+  loginUser,
+  logoutUser,
+  registerUser,
   uploadDocument,
 } from "./api";
 import Sidebar from "./components/Sidebar";
@@ -16,8 +21,9 @@ import Documents from "./pages/Documents";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Activity from "./pages/Activity";
+import Users from "./pages/Users";
 import Login from "./pages/Login";
-import { NAV_ITEMS, normalizeDetailPayload } from "./utils";
+import { getNavItems, normalizeDetailPayload } from "./utils";
 
 const SESSION_KEY = "docagent-session";
 const THEME_KEY = "docagent-theme";
@@ -40,11 +46,13 @@ function App() {
   const [health, setHealth] = useState("Checking...");
   const [stats, setStats] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const [uploadHistory, setUploadHistory] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -54,30 +62,54 @@ function App() {
   const [globalError, setGlobalError] = useState("");
 
   function addActivity(action, detail) {
-    setActivityLog((prev) => [
-      {
-        action,
-        detail,
-        time: new Date().toLocaleString(),
-      },
-      ...prev,
-    ]);
+    const now = Date.now();
+    const item = {
+      action,
+      detail,
+      created_at: now,
+      time: new Date(now).toLocaleString(),
+    };
+
+    let added = false;
+    setActivityLog((prev) => {
+      const latest = prev[0];
+      if (
+        latest &&
+        latest.action === action &&
+        latest.detail === detail &&
+        typeof latest.created_at === "number" &&
+        now - latest.created_at < 5000
+      ) {
+        return prev;
+      }
+      added = true;
+      return [item, ...prev];
+    });
+    if (added) {
+      setUnreadNotifications((prev) => prev + 1);
+    }
   }
 
   async function loadData() {
-    if (!session) return;
+    if (!session?.user) return;
 
     setLoading(true);
     setGlobalError("");
     try {
       const [healthData, statsData, docsData] = await Promise.all([
         fetchHealth(),
-        fetchDashboardStats(),
-        fetchDocuments(),
+        fetchDashboardStats(session.token),
+        fetchDocuments(session.token),
       ]);
       setHealth(healthData?.status === "ok" ? "Online" : "Unknown");
       setStats(statsData);
       setDocuments(Array.isArray(docsData) ? docsData : []);
+      if (session.user?.role === "admin") {
+        const usersData = await fetchUsers(session.token);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+      } else {
+        setUsers([]);
+      }
     } catch (err) {
       setHealth("Offline");
       setGlobalError(err.message || "Failed to load data");
@@ -92,44 +124,132 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    async function bootstrap() {
+      try {
+        const token = session?.token;
+        const user = await fetchCurrentUser(token);
+        setSession((prev) => ({
+          token: prev?.token || token || "",
+          user: {
+            ...user,
+            name: user.name || user.username || String(user.email || "User").split("@")[0],
+          },
+          remember: Boolean(prev?.remember),
+        }));
+      } catch {
+        setSession(null);
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+    bootstrap();
+  }, []);
+
+  useEffect(() => {
     loadData();
-  }, [session]);
+  }, [session?.token, session?.user?.role]);
 
-  const notificationCount = useMemo(() => activityLog.slice(0, 5).length, [activityLog]);
+  const notificationCount = unreadNotifications;
+  const navItems = useMemo(() => getNavItems(session?.user?.role), [session?.user?.role]);
+  const isAdmin = session?.user?.role === "admin";
+  const allowedPages = useMemo(() => new Set(navItems.map((item) => item.key)), [navItems]);
 
-  function handleLogin(payload) {
+  useEffect(() => {
+    if (!allowedPages.has(currentPage)) {
+      setCurrentPage("dashboard");
+    }
+  }, [allowedPages, currentPage]);
+
+  useEffect(() => {
+    if (!globalError) return;
+    const timer = window.setTimeout(() => setGlobalError(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [globalError]);
+
+  useEffect(() => {
+    if (currentPage === "activity") {
+      setUnreadNotifications(0);
+    }
+  }, [currentPage]);
+
+  async function handleLogin(payload) {
+    const email = String(payload.email || "").trim().toLowerCase();
+
+    if (payload.mode === "register") {
+      const registerResult = await registerUser({
+        username: String(payload.username || "").trim(),
+        email,
+        password: payload.password,
+        role: payload.role || "user",
+        adminKey: payload.adminKey || "",
+        newAdminKey: payload.newAdminKey || "",
+      });
+      return {
+        ...registerResult,
+        justRegistered: true,
+      };
+    }
+
+    const loginResult = await loginUser({ identifier: payload.identifier, password: payload.password });
+    const user = {
+      ...loginResult.user,
+      name: loginResult.user?.username || String(loginResult.user?.email || "User").split("@")[0],
+    };
     const next = {
-      name: payload.name,
-      email: payload.email,
-      role: payload.role,
+      token: loginResult.access_token || "",
+      user,
       remember: payload.remember,
     };
+    const deferSessionMs = Number(payload.deferSessionMs) || 0;
+    if (deferSessionMs > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, deferSessionMs));
+    }
     setSession(next);
-    if (payload.remember) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
-    addActivity("Login", `${payload.email} signed in as ${payload.role}`);
+    if (payload.remember) {
+      localStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          user: next.user,
+          remember: true,
+          token: "",
+        }),
+      );
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
+    addActivity("Login", `${user.email} signed in as ${user.role}`);
+    return { justRegistered: false };
   }
 
-  function handleLogout() {
-    setSession(null);
-    localStorage.removeItem(SESSION_KEY);
-    setCurrentPage("dashboard");
-    setStats(null);
-    setDocuments([]);
-    setUploadHistory([]);
-    setActivityLog([]);
+  async function handleLogout() {
+    try {
+      await logoutUser();
+    } catch {
+      // Continue local cleanup even if backend logout fails.
+    } finally {
+      setSession(null);
+      localStorage.removeItem(SESSION_KEY);
+      setCurrentPage("dashboard");
+      setStats(null);
+      setDocuments([]);
+      setUsers([]);
+      setUploadHistory([]);
+      setActivityLog([]);
+      setUnreadNotifications(0);
+    }
   }
 
   async function handleUpload(file) {
     setUploading(true);
     setGlobalError("");
     try {
-      const result = await uploadDocument(file);
+      const result = await uploadDocument(file, session.token);
       setUploadHistory((prev) => [
+        ...prev,
         {
+          documentId: result.document_id || "",
           filename: result.filename || file.name,
           time: new Date().toLocaleString(),
         },
-        ...prev,
       ]);
       addActivity("Upload", `Uploaded ${result.filename || file.name}`);
       await loadData();
@@ -148,7 +268,7 @@ function App() {
     setSelectedDocument(null);
 
     try {
-      const detail = await fetchDocumentById(docId);
+      const detail = await fetchDocumentById(docId, session.token);
       setSelectedDocument(normalizeDetailPayload(detail));
       addActivity("Inspect Document", `Opened detail view for ${docId}`);
     } catch (err) {
@@ -164,12 +284,42 @@ function App() {
     if (!confirmed) return;
 
     try {
-      await deleteDocumentById(doc.id);
+      await deleteDocumentById(doc.id, session.token);
       addActivity("Delete Document", `Deleted ${doc.filename || doc.id}`);
       await loadData();
     } catch (err) {
       setGlobalError(err.message || "Delete failed");
       addActivity("Delete Failed", err.message || "Delete failed");
+    }
+  }
+
+  async function handleOpenUploadHistoryItem(item) {
+    if (!item) return;
+    setCurrentPage("documents");
+
+    if (item.documentId) {
+      await handleOpenDetails(item.documentId);
+      return;
+    }
+
+    const matched = documents.find((doc) => doc.filename === item.filename);
+    if (matched?.id) {
+      await handleOpenDetails(matched.id);
+      return;
+    }
+
+    try {
+      const docsData = await fetchDocuments(session.token);
+      const nextDocs = Array.isArray(docsData) ? docsData : [];
+      setDocuments(nextDocs);
+      const nextMatch = nextDocs.find((doc) => doc.filename === item.filename);
+      if (nextMatch?.id) {
+        await handleOpenDetails(nextMatch.id);
+      } else {
+        setGlobalError("Document not found in My Documents.");
+      }
+    } catch (err) {
+      setGlobalError(err.message || "Failed to open document from history");
     }
   }
 
@@ -181,12 +331,21 @@ function App() {
           documents={documents}
           onNavigate={setCurrentPage}
           onQuickUpload={() => setCurrentPage("upload")}
+          canUpload={allowedPages.has("upload")}
         />
       );
     }
 
     if (currentPage === "upload") {
-      return <Upload uploading={uploading} onUpload={handleUpload} uploadHistory={uploadHistory} />;
+      return (
+        <Upload
+          uploading={uploading}
+          onUpload={handleUpload}
+          uploadHistory={uploadHistory}
+          onOpenDocuments={() => setCurrentPage("documents")}
+          onOpenHistoryItem={handleOpenUploadHistoryItem}
+        />
+      );
     }
 
     if (currentPage === "documents") {
@@ -200,12 +359,26 @@ function App() {
       );
     }
 
+    if (currentPage === "users") {
+      if (!isAdmin) {
+        return (
+          <section className="page-stack">
+            <article className="glass-card panel">
+              <h3>Access Restricted</h3>
+              <p className="muted">You do not have permission to view this page.</p>
+            </article>
+          </section>
+        );
+      }
+      return <Users users={users} loading={loading} />;
+    }
+
     if (currentPage === "analytics") {
       return <Analytics stats={stats} documents={documents} />;
     }
 
     if (currentPage === "settings") {
-      return <Settings theme={theme} onThemeToggle={() => setTheme((p) => (p === "dark" ? "light" : "dark"))} user={session} />;
+      return <Settings theme={theme} onThemeToggle={() => setTheme((p) => (p === "dark" ? "light" : "dark"))} user={session.user} />;
     }
 
     return <Activity items={activityLog} />;
@@ -218,7 +391,7 @@ function App() {
   return (
     <div className="app-shell">
       <Sidebar
-        items={NAV_ITEMS}
+        items={navItems}
         currentPage={currentPage}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
@@ -231,12 +404,15 @@ function App() {
           theme={theme}
           onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
           backendHealth={health}
-          user={session}
+          user={session.user}
           notifications={notificationCount}
+          onNotificationsClick={() => setCurrentPage("activity")}
         />
 
-        {globalError && <p className="error-banner">{globalError}</p>}
-        {renderPage()}
+        {globalError && <p className="error-banner toast-in">{globalError}</p>}
+        <div key={currentPage} className="page-transition">
+          {renderPage()}
+        </div>
       </div>
 
       <DetailModal

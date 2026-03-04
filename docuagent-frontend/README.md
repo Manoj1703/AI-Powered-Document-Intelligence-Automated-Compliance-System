@@ -15,6 +15,6 @@
 ## Backend URL
 Set API base URL via `.env` file in this frontend folder:
 
-VITE_API_BASE_URL=http://127.0.0.1:8002
+VITE_API_BASE_URL=http://127.0.0.1:8003
 
-If not set, it defaults to `http://127.0.0.1:8002`.
+If not set, it defaults to `http://127.0.0.1:8003`.

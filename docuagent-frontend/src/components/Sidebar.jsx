@@ -24,7 +24,7 @@ function Sidebar({ items, currentPage, collapsed, onToggle, onNavigate, onLogout
             onClick={() => onNavigate(item.key)}
             title={item.label}
           >
-            {!collapsed ? item.label : item.label[0]}
+            <span className="nav-label">{!collapsed ? item.label : item.label[0]}</span>
           </button>
         ))}
       </nav>
