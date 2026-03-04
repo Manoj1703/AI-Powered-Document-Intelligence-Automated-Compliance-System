@@ -2,7 +2,9 @@
 
 import json
 import os
+import socket
 from typing import Any
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 import httpx
@@ -18,13 +20,57 @@ openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 if api_base_url and "openrouter.ai" in api_base_url and "/" not in openai_model:
     openai_model = f"openai/{openai_model}"
 
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = str(os.getenv(name, str(default))).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _provider_name() -> str:
+    base = str(api_base_url or "").lower()
+    if "openrouter.ai" in base:
+        return "OpenRouter"
+    return "OpenAI"
+
+
+def _resolved_base_url() -> str:
+    return str(api_base_url or "https://api.openai.com/v1").strip()
+
+
+def _base_hostname() -> str:
+    parsed = urlparse(_resolved_base_url())
+    return str(parsed.hostname or "").strip()
+
+
+def ai_provider_name() -> str:
+    return _provider_name()
+
+
+def format_connection_error_detail(exc: Exception) -> str:
+    provider = _provider_name()
+    base_url = _resolved_base_url()
+    host = _base_hostname()
+    base_msg = str(exc).strip() or "Connection error."
+    diagnostics: list[str] = [f"Provider={provider}", f"Base URL={base_url}"]
+    if host:
+        try:
+            socket.getaddrinfo(host, 443)
+        except socket.gaierror:
+            diagnostics.append(f"DNS lookup failed for {host}")
+    diagnostics.append("Check internet/firewall/proxy access to the provider host")
+    return f"{base_msg} ({'; '.join(diagnostics)})"
+
+
 # Create OpenAI client only if key is available.
 client = (
     OpenAI(
         api_key=api_key,
         base_url=api_base_url,
-        # Ignore broken shell/system proxy env vars unless explicitly needed.
-        http_client=httpx.Client(trust_env=False),
+        # Default to trusting env proxies; disable by setting OPENAI_TRUST_ENV=false.
+        http_client=httpx.Client(
+            trust_env=_env_bool("OPENAI_TRUST_ENV", True),
+            timeout=httpx.Timeout(connect=10.0, read=45.0, write=45.0, pool=45.0),
+        ),
     )
     if api_key
     else None
@@ -131,6 +177,11 @@ def analyze_document(text: str) -> dict[str, Any]:
         raise ValueError(
             "Set API_TOKEN (or OPENAI_API_KEY) in environment variables."
         )
+    source_text = str(text or "")
+    # Keep prompt size bounded to reduce model context errors on very large files.
+    prompt_text = source_text[:12000]
+    if len(source_text) > len(prompt_text):
+        prompt_text += "\n\n[Document content truncated for analysis]"
 
     # Prompt forces strict JSON schema so downstream parsing is reliable.
     prompt = f"""
@@ -170,7 +221,7 @@ Rules:
 - risk_types should be a concise list of risk categories.
 
 Document content:
-{text}
+{prompt_text}
 """.strip()
 
     response = client.chat.completions.create(

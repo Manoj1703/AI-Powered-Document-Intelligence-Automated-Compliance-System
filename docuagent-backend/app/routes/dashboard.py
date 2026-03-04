@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 
 # Import collection accessor with fallback for alternate execution paths.
 try:
-    from app.auth import get_current_user
+    from app.auth import get_current_user, is_admin_role
     from app.database import get_collection
 except ModuleNotFoundError as exc:
     if exc.name not in {"app", "app.database", "app.auth"}:
         raise
-    from auth import get_current_user
+    from auth import get_current_user, is_admin_role
     from database import get_collection
 
 # Dashboard endpoints are grouped under /api/dashboard.
@@ -36,7 +36,7 @@ def _count_by_level(collection, level: str, base_query: dict) -> int:
 def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     # Fetch MongoDB collection once for all dashboard queries.
     collection = get_collection()
-    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    is_admin = is_admin_role(current_user.get("role"))
     base_query = {}
     if not is_admin:
         base_query = {"uploaded_by": current_user.get("_id")}

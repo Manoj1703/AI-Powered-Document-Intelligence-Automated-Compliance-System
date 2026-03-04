@@ -1,22 +1,22 @@
 export const ADMIN_NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "documents", label: "All Documents" },
-  { key: "users", label: "Users Management" },
-  { key: "analytics", label: "Risk Analytics" },
-  { key: "activity", label: "Activity Logs" },
-  { key: "settings", label: "Settings" },
+  { key: "dashboard", label: "Dashboard", icon: "DB" },
+  { key: "documents", label: "All Documents", icon: "DC" },
+  { key: "users", label: "Users Management", icon: "US" },
+  { key: "analytics", label: "Risk Analytics", icon: "AN" },
+  { key: "activity", label: "Activity Logs", icon: "AC" },
+  { key: "settings", label: "Settings", icon: "ST" },
 ];
 
 export const USER_NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "documents", label: "My Documents" },
-  { key: "upload", label: "Upload Document" },
-  { key: "analytics", label: "My Risk Reports" },
-  { key: "settings", label: "Settings" },
+  { key: "dashboard", label: "Dashboard", icon: "DB" },
+  { key: "documents", label: "My Documents", icon: "DC" },
+  { key: "upload", label: "Upload Document", icon: "UP" },
+  { key: "analytics", label: "My Risk Reports", icon: "AN" },
+  { key: "settings", label: "Settings", icon: "ST" },
 ];
 
 export function getNavItems(role) {
-  return role === "admin" ? ADMIN_NAV_ITEMS : USER_NAV_ITEMS;
+  return role === "admin" || role === "super_admin" ? ADMIN_NAV_ITEMS : USER_NAV_ITEMS;
 }
 
 export const RISK_FILTERS = ["All", "High", "Medium", "Low", "Unknown"];

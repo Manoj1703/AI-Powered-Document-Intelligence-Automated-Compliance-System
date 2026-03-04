@@ -14,6 +14,20 @@ function getPasswordStrengthError(password) {
   return "Use 8+ chars with uppercase, lowercase, number, and special character.";
 }
 
+function getPasswordStrength(password) {
+  const value = String(password || "");
+  if (!value) return { label: "None", level: "none", width: "0%" };
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (/[A-Z]/.test(value)) score += 1;
+  if (/[a-z]/.test(value)) score += 1;
+  if (/[0-9]/.test(value)) score += 1;
+  if (/[^A-Za-z0-9]/.test(value)) score += 1;
+  if (score <= 2) return { label: "Weak", level: "weak", width: "40%" };
+  if (score <= 4) return { label: "Medium", level: "medium", width: "70%" };
+  return { label: "Strong", level: "strong", width: "100%" };
+}
+
 function Login({ onLogin }) {
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
@@ -21,8 +35,11 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("user");
-  const [adminKey, setAdminKey] = useState("");
   const [newAdminKey, setNewAdminKey] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewAdminKey, setShowNewAdminKey] = useState(false);
   const [remember, setRemember] = useState(true);
   const [mode, setMode] = useState("login");
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +47,6 @@ function Login({ onLogin }) {
   const [info, setInfo] = useState("");
   const [signupMeta, setSignupMeta] = useState({
     admin_exists: false,
-    admin_key_required_for_admin_signup: false,
     admin_key_initialized: false,
   });
 
@@ -40,7 +56,6 @@ function Login({ onLogin }) {
         const data = await fetchSignupMeta();
         setSignupMeta({
           admin_exists: Boolean(data?.admin_exists),
-          admin_key_required_for_admin_signup: Boolean(data?.admin_key_required_for_admin_signup),
           admin_key_initialized: Boolean(data?.admin_key_initialized),
         });
       } catch {
@@ -53,7 +68,17 @@ function Login({ onLogin }) {
   useEffect(() => {
     setError("");
     setInfo("");
+    setShowLoginPassword(false);
+    setShowRegisterPassword(false);
+    setShowConfirmPassword(false);
+    setShowNewAdminKey(false);
   }, [mode]);
+
+  useEffect(() => {
+    if (signupMeta.admin_exists && role === "admin") {
+      setRole("user");
+    }
+  }, [signupMeta.admin_exists, role]);
 
   function validateForm() {
     if (!password.trim()) return "Password is required.";
@@ -61,8 +86,8 @@ function Login({ onLogin }) {
     if (mode === "register" && !username.trim()) return "Username is required.";
     if (mode === "register" && !email.trim()) return "Email is required.";
     if (mode === "register" && password !== confirmPassword) return "Password and Confirm Password do not match.";
-    if (mode === "register" && role === "admin" && signupMeta.admin_exists && !adminKey.trim()) {
-      return "Admin creation key is required to create additional admin accounts.";
+    if (mode === "register" && role === "admin" && signupMeta.admin_exists) {
+      return "Admin self-registration is disabled. Super admin must promote users.";
     }
     if (mode === "register" && role === "admin" && !signupMeta.admin_exists && !newAdminKey.trim()) {
       return "As first admin, you must create an admin creation key.";
@@ -94,7 +119,6 @@ function Login({ onLogin }) {
         remember,
         mode,
         role,
-        adminKey,
         newAdminKey,
         deferSessionMs: mode === "login" ? 360 : 0,
       });
@@ -106,7 +130,6 @@ function Login({ onLogin }) {
         }
         setMode("login");
         setRole("user");
-        setAdminKey("");
         setNewAdminKey("");
         setUsername("");
         setEmail("");
@@ -120,6 +143,18 @@ function Login({ onLogin }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  const strength = getPasswordStrength(password);
+
+  function EyeIcon({ visible }) {
+    return (
+      <svg className={`eye-icon ${visible ? "is-visible" : ""}`} width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path className="eye-outline" d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" />
+        <circle className="eye-pupil" cx="12" cy="12" r="2.2" />
+        <path className="eye-slash" d="M4 4l16 16" />
+      </svg>
+    );
   }
 
   return (
@@ -174,15 +209,25 @@ function Login({ onLogin }) {
 
             <label className="auth-label">
               Password
-              <input
-                className="auth-input"
-                type="password"
-                name="login_password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <span className="password-field">
+                <input
+                  className="auth-input"
+                  type={showLoginPassword ? "text" : "password"}
+                  name="login_password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowLoginPassword((prev) => !prev)}
+                >
+                  <EyeIcon visible={showLoginPassword} />
+                </button>
+              </span>
             </label>
           </>
         )}
@@ -217,28 +262,53 @@ function Login({ onLogin }) {
 
             <label className="auth-label">
               Password
-              <input
-                className="auth-input"
-                type="password"
-                name="register_password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <span className="password-field">
+                <input
+                  className="auth-input"
+                  type={showRegisterPassword ? "text" : "password"}
+                  name="register_password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={showRegisterPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowRegisterPassword((prev) => !prev)}
+                >
+                  <EyeIcon visible={showRegisterPassword} />
+                </button>
+              </span>
             </label>
+
+            <div className="password-strength">
+              <small>Password Strength: {strength.label}</small>
+              <div className={`strength-bar ${strength.level}`} style={{ "--strength": strength.width }} />
+            </div>
 
             <label className="auth-label">
               Confirm Password
-              <input
-                className="auth-input"
-                type="password"
-                name="register_confirm_password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
+              <span className="password-field">
+                <input
+                  className="auth-input"
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="register_confirm_password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                >
+                  <EyeIcon visible={showConfirmPassword} />
+                </button>
+              </span>
             </label>
 
             <p className="password-hint">Use 8+ chars with uppercase, lowercase, number, and special character.</p>
@@ -247,7 +317,7 @@ function Login({ onLogin }) {
               Role
               <select className="auth-input" value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="user">User</option>
-                <option value="admin">Legal Admin</option>
+                {!signupMeta.admin_exists && <option value="admin">Legal Admin</option>}
               </select>
             </label>
 
@@ -255,41 +325,36 @@ function Login({ onLogin }) {
               <>
                 <p className="password-hint">
                   {signupMeta.admin_exists
-                    ? "Admin accounts require Admin Creation Key."
-                    : "You are the first admin. Create Admin Creation Key now."}
+                    ? "Admin self-registration is disabled."
+                    : "You are the first admin. You will become Super Admin. Create Admin Creation Key now."}
                 </p>
 
                 {signupMeta.admin_exists && !signupMeta.admin_key_initialized && (
                   <p className="error-text">Admin key is not initialized. Login as an existing admin and rotate admin key.</p>
                 )}
 
-                {signupMeta.admin_exists && (
-                  <label className="auth-label">
-                    Admin Creation Key
-                    <input
-                      className="auth-input"
-                      type="password"
-                      name="register_admin_key"
-                      autoComplete="new-password"
-                      value={adminKey}
-                      onChange={(e) => setAdminKey(e.target.value)}
-                      required
-                    />
-                  </label>
-                )}
-
                 {!signupMeta.admin_exists && (
                   <label className="auth-label">
                     Create Admin Creation Key
-                    <input
-                      className="auth-input"
-                      type="password"
-                      name="register_new_admin_key"
-                      autoComplete="new-password"
-                      value={newAdminKey}
-                      onChange={(e) => setNewAdminKey(e.target.value)}
-                      required
-                    />
+                    <span className="password-field">
+                      <input
+                        className="auth-input"
+                        type={showNewAdminKey ? "text" : "password"}
+                        name="register_new_admin_key"
+                        autoComplete="new-password"
+                        value={newAdminKey}
+                        onChange={(e) => setNewAdminKey(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        aria-label={showNewAdminKey ? "Hide password" : "Show password"}
+                        onClick={() => setShowNewAdminKey((prev) => !prev)}
+                      >
+                        <EyeIcon visible={showNewAdminKey} />
+                      </button>
+                    </span>
                   </label>
                 )}
               </>

@@ -91,9 +91,8 @@ export async function fetchSignupMeta() {
   return parseOrThrow(response, "Signup meta failed");
 }
 
-export async function registerUser({ username, email, password, role, adminKey, newAdminKey }) {
+export async function registerUser({ username, email, password, role, newAdminKey }) {
   const payload = { username, email, password, role };
-  if (adminKey && String(adminKey).trim()) payload.admin_key = String(adminKey).trim();
   if (newAdminKey && String(newAdminKey).trim()) payload.new_admin_key = String(newAdminKey).trim();
   const response = await apiFetch("/api/auth/register", {
     method: "POST",
@@ -130,6 +129,29 @@ export async function fetchDocuments(token) {
 export async function fetchUsers(token) {
   const response = await authFetch("/api/users", token);
   return parseOrThrow(response, "Users API failed");
+}
+
+export async function updateUserRole(userId, role, token) {
+  const response = await authFetch(`/api/users/${userId}/role`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
+  return parseOrThrow(response, "Update user role failed");
+}
+
+export async function deleteUserById(userId, token) {
+  const response = await authFetch(`/api/users/${userId}`, token, {
+    method: "DELETE",
+  });
+  return parseOrThrow(response, "Delete user failed");
+}
+
+export async function transferSuperAdmin(userId, token) {
+  const response = await authFetch(`/api/users/transfer-super-admin/${userId}`, token, {
+    method: "POST",
+  });
+  return parseOrThrow(response, "Transfer super admin failed");
 }
 
 export async function uploadDocument(file, token) {

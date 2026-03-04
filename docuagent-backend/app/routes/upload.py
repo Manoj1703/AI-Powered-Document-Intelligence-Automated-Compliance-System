@@ -18,7 +18,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 try:
     from app.auth import get_current_user
     from app.database import get_collection
-    from app.services.ai_service import analyze_document
+    from app.services.ai_service import analyze_document, ai_provider_name, format_connection_error_detail
     from app.services.extractors import ALLOWED_EXTENSIONS, extract_text_by_extension
 except ModuleNotFoundError as exc:
     if exc.name not in {
@@ -32,7 +32,7 @@ except ModuleNotFoundError as exc:
         raise
     from auth import get_current_user
     from database import get_collection
-    from services.ai_service import analyze_document
+    from services.ai_service import analyze_document, ai_provider_name, format_connection_error_detail
     from services.extractors import ALLOWED_EXTENSIONS, extract_text_by_extension
 
 # Upload APIs are available under /api.
@@ -104,13 +104,21 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
         except ValueError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         except AuthenticationError as exc:
-            raise HTTPException(status_code=401, detail=f"OpenAI authentication failed: {exc}") from exc
+            provider = ai_provider_name()
+            raise HTTPException(status_code=401, detail=f"{provider} authentication failed: {exc}") from exc
         except RateLimitError as exc:
-            raise HTTPException(status_code=429, detail=f"OpenAI quota/rate limit error: {exc}") from exc
+            provider = ai_provider_name()
+            raise HTTPException(status_code=429, detail=f"{provider} quota/rate limit error: {exc}") from exc
         except APIConnectionError as exc:
-            raise HTTPException(status_code=502, detail=f"OpenAI connection error: {exc}") from exc
+            provider = ai_provider_name()
+            detail = format_connection_error_detail(exc)
+            raise HTTPException(status_code=502, detail=f"{provider} connection error: {detail}") from exc
         except APIStatusError as exc:
-            raise HTTPException(status_code=502, detail=f"OpenAI API error (status {exc.status_code}): {exc}") from exc
+            provider = ai_provider_name()
+            raise HTTPException(
+                status_code=502,
+                detail=f"{provider} API error (status {exc.status_code}): {exc}",
+            ) from exc
 
         # Build document record with timestamps.
         now_utc = dt.datetime.now(dt.timezone.utc)

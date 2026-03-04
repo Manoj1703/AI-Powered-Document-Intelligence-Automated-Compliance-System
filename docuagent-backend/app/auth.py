@@ -28,6 +28,7 @@ if len(JWT_SECRET) < 32:
     raise RuntimeError("JWT_SECRET must be at least 32 characters.")
 JWT_ALG = "HS256"
 bearer_scheme = HTTPBearer(auto_error=False)
+ADMIN_ROLES = {"admin", "super_admin"}
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -108,11 +109,26 @@ def ensure_admin_user() -> None:
         partialFilterExpression={"username": {"$type": "string"}},
     )
     users.create_index("role")
+    if users.count_documents({"role": "super_admin"}) == 0:
+        first_admin = users.find_one(
+            {"role": "admin"},
+            sort=[("created_at", 1), ("_id", 1)],
+        )
+        if first_admin:
+            users.update_one({"_id": first_admin["_id"]}, {"$set": {"role": "super_admin"}})
 
 
 def admin_exists() -> bool:
     users = get_users_collection()
-    return users.count_documents({"role": "admin"}) > 0
+    return users.count_documents({"role": {"$in": list(ADMIN_ROLES)}}) > 0
+
+
+def is_admin_role(role: Any) -> bool:
+    return str(role or "").strip().lower() in ADMIN_ROLES
+
+
+def is_super_admin_role(role: Any) -> bool:
+    return str(role or "").strip().lower() == "super_admin"
 
 
 def _admin_key_config() -> dict[str, Any] | None:
@@ -173,7 +189,12 @@ def get_current_user(
 
 
 def require_admin(current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    role = str(current_user.get("role") or "").strip().lower()
-    if role != "admin":
+    if not is_admin_role(current_user.get("role")):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access restricted")
+    return current_user
+
+
+def require_super_admin(current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    if not is_super_admin_role(current_user.get("role")):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
     return current_user

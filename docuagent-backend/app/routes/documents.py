@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from bson import ObjectId
 
 try:
-    from app.auth import get_current_user
+    from app.auth import get_current_user, is_admin_role
     from app.database import get_collection
 except ModuleNotFoundError as exc:
     if exc.name not in {"app", "app.database", "app.auth"}:
         raise
-    from auth import get_current_user
+    from auth import get_current_user, is_admin_role
     from database import get_collection
 
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -52,7 +52,7 @@ def _sort_documents_latest_first(docs: list[dict]) -> list[dict]:
 @router.get("/documents")
 def get_all_documents(current_user: dict = Depends(get_current_user)):
     collection = get_collection()
-    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    is_admin = is_admin_role(current_user.get("role"))
     query = {}
     if not is_admin:
         query = {"uploaded_by": current_user.get("_id")}
@@ -101,7 +101,7 @@ def get_document_by_id(doc_id: str, current_user: dict = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Invalid document ID") from exc
 
     collection = get_collection()
-    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    is_admin = is_admin_role(current_user.get("role"))
     query = {"_id": object_id}
     if not is_admin:
         query["uploaded_by"] = current_user.get("_id")
@@ -121,7 +121,7 @@ def delete_document_by_id(doc_id: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=400, detail="Invalid document ID") from exc
 
     collection = get_collection()
-    is_admin = str(current_user.get("role") or "").strip().lower() == "admin"
+    is_admin = is_admin_role(current_user.get("role"))
     query = {"_id": object_id}
     if not is_admin:
         query["uploaded_by"] = current_user.get("_id")

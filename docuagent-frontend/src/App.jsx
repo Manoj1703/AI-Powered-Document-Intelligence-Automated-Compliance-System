@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  deleteUserById,
   deleteDocumentById,
   fetchCurrentUser,
   fetchDashboardStats,
@@ -10,6 +11,8 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  transferSuperAdmin,
+  updateUserRole,
   uploadDocument,
 } from "./api";
 import Sidebar from "./components/Sidebar";
@@ -104,7 +107,7 @@ function App() {
       setHealth(healthData?.status === "ok" ? "Online" : "Unknown");
       setStats(statsData);
       setDocuments(Array.isArray(docsData) ? docsData : []);
-      if (session.user?.role === "admin") {
+      if (session.user?.role === "admin" || session.user?.role === "super_admin") {
         const usersData = await fetchUsers(session.token);
         setUsers(Array.isArray(usersData) ? usersData : []);
       } else {
@@ -150,7 +153,8 @@ function App() {
 
   const notificationCount = unreadNotifications;
   const navItems = useMemo(() => getNavItems(session?.user?.role), [session?.user?.role]);
-  const isAdmin = session?.user?.role === "admin";
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super_admin";
+  const isSuperAdmin = session?.user?.role === "super_admin";
   const allowedPages = useMemo(() => new Set(navItems.map((item) => item.key)), [navItems]);
 
   useEffect(() => {
@@ -180,7 +184,6 @@ function App() {
         email,
         password: payload.password,
         role: payload.role || "user",
-        adminKey: payload.adminKey || "",
         newAdminKey: payload.newAdminKey || "",
       });
       return {
@@ -293,6 +296,66 @@ function App() {
     }
   }
 
+  async function handlePromoteUser(user) {
+    if (!user?.id) return;
+    try {
+      await updateUserRole(user.id, "admin", session.token);
+      addActivity("Role Updated", `Promoted ${user.email} to admin`);
+      await loadData();
+    } catch (err) {
+      setGlobalError(err.message || "Failed to promote user");
+      addActivity("Role Update Failed", err.message || "Failed to promote user");
+    }
+  }
+
+  async function handleDemoteUser(user) {
+    if (!user?.id) return;
+    try {
+      await updateUserRole(user.id, "user", session.token);
+      addActivity("Role Updated", `Demoted ${user.email} to user`);
+      await loadData();
+    } catch (err) {
+      setGlobalError(err.message || "Failed to demote user");
+      addActivity("Role Update Failed", err.message || "Failed to demote user");
+    }
+  }
+
+  async function handleDeleteUser(user) {
+    if (!user?.id) return;
+    const confirmed = window.confirm(`Delete user "${user.email}"?`);
+    if (!confirmed) return;
+    try {
+      await deleteUserById(user.id, session.token);
+      addActivity("User Deleted", `Deleted ${user.email}`);
+      await loadData();
+    } catch (err) {
+      setGlobalError(err.message || "Failed to delete user");
+      addActivity("User Delete Failed", err.message || "Failed to delete user");
+    }
+  }
+
+  async function handleTransferSuperAdmin(user) {
+    if (!user?.id) return;
+    const confirmed = window.confirm(`Transfer super admin role to "${user.email}"?`);
+    if (!confirmed) return;
+    try {
+      await transferSuperAdmin(user.id, session.token);
+      addActivity("Role Transfer", `Transferred super admin to ${user.email}`);
+      const refreshed = await fetchCurrentUser(session.token);
+      setSession((prev) => ({
+        ...(prev || {}),
+        user: {
+          ...refreshed,
+          name: refreshed.name || refreshed.username || String(refreshed.email || "User").split("@")[0],
+        },
+      }));
+      await loadData();
+    } catch (err) {
+      setGlobalError(err.message || "Failed to transfer super admin");
+      addActivity("Role Transfer Failed", err.message || "Failed to transfer super admin");
+    }
+  }
+
   async function handleOpenUploadHistoryItem(item) {
     if (!item) return;
     setCurrentPage("documents");
@@ -332,6 +395,8 @@ function App() {
           onNavigate={setCurrentPage}
           onQuickUpload={() => setCurrentPage("upload")}
           canUpload={allowedPages.has("upload")}
+          isAdmin={isAdmin}
+          onOpenDocument={handleOpenDetails}
         />
       );
     }
@@ -370,7 +435,18 @@ function App() {
           </section>
         );
       }
-      return <Users users={users} loading={loading} />;
+      return (
+        <Users
+          users={users}
+          loading={loading}
+          currentUser={session.user}
+          canManageRoles={isSuperAdmin}
+          onPromote={handlePromoteUser}
+          onDemote={handleDemoteUser}
+          onDeleteUser={handleDeleteUser}
+          onTransferSuperAdmin={handleTransferSuperAdmin}
+        />
+      );
     }
 
     if (currentPage === "analytics") {

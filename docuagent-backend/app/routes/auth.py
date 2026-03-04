@@ -18,9 +18,8 @@ try:
         ensure_admin_user,
         get_current_user,
         hash_password,
-        require_admin,
+        require_super_admin,
         set_admin_creation_key,
-        verify_admin_creation_key,
         verify_password,
         TOKEN_TTL_SECONDS,
     )
@@ -36,9 +35,8 @@ except ModuleNotFoundError as exc:
         ensure_admin_user,
         get_current_user,
         hash_password,
-        require_admin,
+        require_super_admin,
         set_admin_creation_key,
-        verify_admin_creation_key,
         verify_password,
         TOKEN_TTL_SECONDS,
     )
@@ -153,7 +151,7 @@ def signup_meta():
     key_exists = admin_creation_key_exists()
     return {
         "admin_exists": exists,
-        "admin_key_required_for_admin_signup": exists,
+        "admin_key_required_for_admin_signup": False,
         "admin_key_initialized": key_exists,
     }
 
@@ -165,26 +163,22 @@ def register(payload: RegisterPayload):
     username = _normalize_username(payload.username)
     username_display = _normalize_username_display(payload.username)
     email = _normalize_email(payload.email)
-    role = _normalize_role(payload.role)
+    requested_role = _normalize_role(payload.role)
+    role = requested_role
     _validate_password_strength(payload.password)
 
     admins_exist = admin_exists()
     first_admin_created = False
 
-    if role == "admin":
+    if requested_role == "admin":
         if admins_exist:
-            if not admin_creation_key_exists():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Admin key is not initialized. Login as an existing admin and rotate admin key.",
-                )
-            raw_admin_key = str(payload.admin_key or "").strip()
-            if not raw_admin_key:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin creation key is required.")
-            if not verify_admin_creation_key(raw_admin_key):
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid admin creation key.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin self-registration is disabled. Super admin must promote users.",
+            )
         else:
             first_admin_created = True
+            role = "super_admin"
             new_admin_key = str(payload.new_admin_key or "").strip()
             if not new_admin_key:
                 raise HTTPException(
@@ -210,7 +204,7 @@ def register(payload: RegisterPayload):
         set_admin_creation_key(str(payload.new_admin_key).strip(), created_by=email)
 
     return {
-        "message": f"{role.capitalize()} registered successfully",
+        "message": f"{role.replace('_', ' ').title()} registered successfully",
         "user": {"username": username_display, "email": email, "role": role},
         "admin_creation_key": None,
         "admin_creation_key_show_once": False,
@@ -270,6 +264,6 @@ def me(current_user: dict[str, Any] = Depends(get_current_user)):
 
 
 @router.post("/admin-key/rotate")
-def rotate_admin_key(current_user: dict[str, Any] = Depends(require_admin)):
+def rotate_admin_key(current_user: dict[str, Any] = Depends(require_super_admin)):
     new_key = create_new_admin_creation_key(created_by=current_user.get("email", "admin"))
     return {"admin_creation_key": new_key, "show_once": True}

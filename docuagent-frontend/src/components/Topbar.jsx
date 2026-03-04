@@ -1,6 +1,9 @@
 import React from "react";
 
 function Topbar({ theme, onThemeToggle, backendHealth, user, notifications, onNotificationsClick }) {
+  const roleLabel = String(user?.role || "user")
+    .replace("_", " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
   const healthClass =
     backendHealth === "Online" ? "online" : backendHealth === "Offline" ? "offline" : "unknown";
 
@@ -19,21 +22,22 @@ function Topbar({ theme, onThemeToggle, backendHealth, user, notifications, onNo
           aria-label="Notifications"
           onClick={onNotificationsClick}
         >
-          Notifications ({notifications})
+          Alerts ({notifications})
         </button>
         <button
           className={`ghost-button theme-toggle ${theme === "dark" ? "dark" : "light"}`}
           type="button"
           onClick={onThemeToggle}
+          aria-label="Toggle theme"
         >
           <span className="theme-icon" aria-hidden="true">
-            {theme === "dark" ? "O" : "o"}
+            {theme === "dark" ? "DK" : "LT"}
           </span>
           Theme: {theme === "dark" ? "Dark" : "Light"}
         </button>
         <div className="profile-chip profile-enter">
           <strong>{user?.name || "User"}</strong>
-          <span className={`role-badge role-${user?.role || "user"}`}>{user?.role || "user"}</span>
+          <span className={`role-badge role-${user?.role || "user"}`}>{roleLabel}</span>
         </div>
       </div>
     </header>

@@ -23,8 +23,15 @@ function Sidebar({ items, currentPage, collapsed, onToggle, onNavigate, onLogout
             className={`nav-link ${currentPage === item.key ? "active" : ""}`}
             onClick={() => onNavigate(item.key)}
             title={item.label}
+            aria-label={item.label}
           >
-            <span className="nav-label">{!collapsed ? item.label : item.label[0]}</span>
+            {collapsed ? (
+              <span className="nav-icon-pill" aria-hidden="true">
+                {item.icon || item.label.slice(0, 2).toUpperCase()}
+              </span>
+            ) : (
+              <span className="nav-label">{item.label}</span>
+            )}
           </button>
         ))}
       </nav>
