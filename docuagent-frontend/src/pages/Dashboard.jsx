@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import RiskCard from "../components/RiskCard";
+import InfoHint from "../components/InfoHint";
 import { formatDate, normalizeRisk, prettyRisk } from "../utils";
 
 function toDate(value) {
@@ -119,7 +120,10 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
       <div className="dashboard-analytics-grid">
         <article className="glass-card panel">
           <div className="panel-head">
-            <h3>Risk Distribution</h3>
+            <h3 className="title-with-help">
+              Risk Distribution
+              <InfoHint text="Shows how uploaded documents are split by High, Medium, and Low risk." />
+            </h3>
             <div className="range-filters" role="group" aria-label="Dashboard range">
               <button type="button" className={`ghost-button ${range === "today" ? "active-filter" : ""}`} onClick={() => setRange("today")}>
                 Today
@@ -236,7 +240,10 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
 
         <article className="glass-card panel">
           <div className="panel-head">
-            <h3>AI Insight</h3>
+            <h3 className="title-with-help">
+              AI Insight
+              <InfoHint text="Quick summary generated from current results to help prioritize review work." />
+            </h3>
           </div>
           <div className="insight-panel">
             <p>
@@ -290,7 +297,10 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
 
       <article className="glass-card panel">
         <div className="panel-head">
-          <h3>{isAdmin ? "Admin Control Center" : "Quick Actions"}</h3>
+          <h3 className="title-with-help">
+            {isAdmin ? "Admin Control Center" : "Quick Actions"}
+            <InfoHint text="Shortcuts for navigation and role-based tasks you can perform right now." />
+          </h3>
         </div>
         <div className="dashboard-actions-grid">
           {canUpload && (
@@ -330,7 +340,10 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
 
       <article className="glass-card panel">
         <div className="panel-head">
-          <h3>Recent Documents</h3>
+          <h3 className="title-with-help">
+            Recent Documents
+            <InfoHint text="Latest uploaded files with direct actions to view details or open analytics." />
+          </h3>
           <button type="button" className="ghost-button" onClick={() => onNavigate("documents")}>
             View All
           </button>

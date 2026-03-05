@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import InfoHint from "../components/InfoHint";
 import { prettyRisk } from "../utils";
 
 function predictRisk(file) {
@@ -43,7 +44,10 @@ function Upload({ uploading, onUpload, uploadHistory = [], onOpenDocuments, onOp
           handleFile(e.dataTransfer.files?.[0]);
         }}
       >
-        <h3>Upload Document</h3>
+        <h3 className="title-with-help">
+          Upload Document
+          <InfoHint text="Drop or select a legal file to extract text and run AI risk analysis." />
+        </h3>
         <p>Drag and drop files here, or browse manually.</p>
         <label className="primary-button">
           Select File
@@ -53,7 +57,10 @@ function Upload({ uploading, onUpload, uploadHistory = [], onOpenDocuments, onOp
 
       <div className="two-col">
         <article className="glass-card panel">
-          <h3>File Preview</h3>
+          <h3 className="title-with-help">
+            File Preview
+            <InfoHint text="Preview basic file metadata before processing." />
+          </h3>
           {!file && <p className="muted">No file selected.</p>}
           {file && (
             <div className="preview-box">
@@ -65,7 +72,10 @@ function Upload({ uploading, onUpload, uploadHistory = [], onOpenDocuments, onOp
         </article>
 
         <article className="glass-card panel">
-          <h3>Risk Prediction Preview</h3>
+          <h3 className="title-with-help">
+            Risk Prediction Preview
+            <InfoHint text="Fast filename-based estimate. Final risk is calculated after full analysis." />
+          </h3>
           {!prediction && <p className="muted">Select a file to preview estimated risk.</p>}
           {prediction && (
             <>
@@ -86,7 +96,10 @@ function Upload({ uploading, onUpload, uploadHistory = [], onOpenDocuments, onOp
 
       <article className="glass-card panel">
         <div className="panel-head">
-          <h3>Upload History</h3>
+          <h3 className="title-with-help">
+            Upload History
+            <InfoHint text="Recent files uploaded from this session for quick access." />
+          </h3>
           <button type="button" className="ghost-button" onClick={onOpenDocuments}>
             Go to My Documents
           </button>

@@ -192,7 +192,11 @@ function App() {
       };
     }
 
-    const loginResult = await loginUser({ identifier: payload.identifier, password: payload.password });
+    const loginResult = await loginUser({
+      identifier: payload.identifier,
+      password: payload.password,
+      turnstileToken: payload.turnstileToken,
+    });
     const user = {
       ...loginResult.user,
       name: loginResult.user?.username || String(loginResult.user?.email || "User").split("@")[0],

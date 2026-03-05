@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import InfoHint from "../components/InfoHint";
 import { buildMonthlyTrend, exportAnalyticsReport } from "../utils";
 
 function Analytics({ stats, documents }) {
@@ -33,7 +34,10 @@ function Analytics({ stats, documents }) {
     <section className="page-stack">
       <article className="glass-card panel">
         <div className="panel-head">
-          <h3>Risk Count by Level</h3>
+          <h3 className="title-with-help">
+            Risk Count by Level
+            <InfoHint text="Count of analyzed documents grouped by risk severity." />
+          </h3>
           <button type="button" className="primary-button" onClick={onExport}>
             Export Report
           </button>
@@ -52,7 +56,10 @@ function Analytics({ stats, documents }) {
       </article>
 
       <article className="glass-card panel">
-        <h3>Monthly Upload Trend</h3>
+        <h3 className="title-with-help">
+          Monthly Upload Trend
+          <InfoHint text="Upload volume trend across recent months to monitor activity." />
+        </h3>
         <svg viewBox="0 0 300 120" className="trend-chart" aria-label="Monthly upload trend">
           <polyline
             fill="none"
@@ -80,7 +87,10 @@ function Analytics({ stats, documents }) {
       </article>
 
       <article className="glass-card panel">
-        <h3>Risk Category Breakdown</h3>
+        <h3 className="title-with-help">
+          Risk Category Breakdown
+          <InfoHint text="Document type distribution to identify dominant contract categories." />
+        </h3>
         <div className="category-list">
           {categories.length === 0 && <p className="muted">No categories available.</p>}
           {categories.map((item) => (

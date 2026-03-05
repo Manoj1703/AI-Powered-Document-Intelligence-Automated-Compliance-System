@@ -57,7 +57,9 @@ def _get_db():
         return _db
     except Exception as exc:
         raise DatabaseUnavailableError(
-            "MongoDB is unreachable (DNS/network issue). Check internet/DNS and MONGO_URI."
+            f"MongoDB is unreachable for MONGO_URI={MONGO_URI!r}. "
+            "If using localhost, ensure MongoDB service is running. "
+            "If using Atlas, verify URI, credentials, and Network Access allowlist."
         ) from exc
 
 

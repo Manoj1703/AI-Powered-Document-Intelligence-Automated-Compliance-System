@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import DocumentTable from "../components/DocumentTable";
+import InfoHint from "../components/InfoHint";
 import { RISK_FILTERS, prettyRisk } from "../utils";
 
 const PAGE_SIZE = 6;
@@ -34,6 +35,12 @@ function Documents({ documents, loading, onView, onDelete }) {
   return (
     <section className="page-stack">
       <article className="glass-card panel">
+        <div className="panel-head">
+          <h3 className="title-with-help">
+            Document Filters
+            <InfoHint text="Filter by text and risk level to quickly find specific contracts or reports." />
+          </h3>
+        </div>
         <div className="filters-row">
           <input
             value={query}

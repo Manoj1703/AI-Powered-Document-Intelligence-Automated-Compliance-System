@@ -10,15 +10,18 @@ function authHeaders(token) {
 }
 
 function _networkError(baseUrl) {
-  const port = (() => {
+  const detail = (() => {
     try {
-      return new URL(baseUrl).port || "default";
+      const parsed = new URL(baseUrl);
+      const host = parsed.hostname || "127.0.0.1";
+      const port = parsed.port || "8003";
+      return `${host}:${port}`;
     } catch {
-      return "configured";
+      return "127.0.0.1:8003";
     }
   })();
   return new Error(
-    `Cannot reach backend at ${baseUrl}. Start backend on port ${port} and verify DNS/network connectivity.`,
+    `Backend is not reachable at ${baseUrl}. Start the API server and retry. Expected local endpoint: ${detail}.`,
   );
 }
 
@@ -102,11 +105,11 @@ export async function registerUser({ username, email, password, role, newAdminKe
   return parseOrThrow(response, "Register failed");
 }
 
-export async function loginUser({ identifier, password }) {
+export async function loginUser({ identifier, password, turnstileToken }) {
   const response = await apiFetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier, password }),
+    body: JSON.stringify({ identifier, password, turnstile_token: turnstileToken }),
   });
   return parseOrThrow(response, "Login failed");
 }

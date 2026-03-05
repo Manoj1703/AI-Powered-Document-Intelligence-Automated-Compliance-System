@@ -39,6 +39,13 @@ def _cors_origin_regex() -> str:
     return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
 
+def _is_db_unavailable(exc: Exception) -> bool:
+    if isinstance(exc, DatabaseUnavailableError):
+        return True
+    message = str(exc).lower()
+    return "mongodb is unreachable" in message or "database unavailable" in message
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Ensure the unique admin account exists if configured via env.
@@ -72,7 +79,15 @@ def healthcheck():
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        if _is_db_unavailable(exc):
+            return JSONResponse(
+                status_code=503,
+                content={"error": "Database unavailable. Please check internet/DNS and MongoDB connectivity."},
+            )
+        raise
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -82,7 +97,7 @@ async def security_headers_middleware(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(_request: Request, exc: Exception):
-    if isinstance(exc, DatabaseUnavailableError):
+    if _is_db_unavailable(exc):
         return JSONResponse(
             status_code=503,
             content={"error": "Database unavailable. Please check internet/DNS and MongoDB connectivity."},

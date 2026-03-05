@@ -1,4 +1,5 @@
 import React from "react";
+import InfoHint from "../components/InfoHint";
 
 function Users({
   users,
@@ -52,7 +53,10 @@ function Users({
   return (
     <section className="page-stack">
       <article className="glass-card panel">
-        <h3>Users Management</h3>
+        <h3 className="title-with-help">
+          Users Management
+          <InfoHint text="View platform users. Only Super Admin can promote, demote, delete, or transfer ownership." />
+        </h3>
         <div className="table-wrap glass-card">
           <table>
             <thead>

@@ -197,6 +197,42 @@ class AuthUsersApiTests(unittest.TestCase):
         logout_response = self.client.post("/api/auth/logout")
         self.assertEqual(logout_response.status_code, 200)
 
+    def test_login_requires_valid_turnstile_when_secret_is_configured(self):
+        class _MockResp:
+            def json(self):
+                return {"success": False}
+
+        with patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": "secret-key"}, clear=False):
+            with patch("app.routes.auth.requests.post", return_value=_MockResp()):
+                response = self.client.post(
+                    "/api/auth/login",
+                    json={
+                        "identifier": "admin@example.com",
+                        "password": "Admin@123",
+                        "turnstile_token": "bad-token",
+                    },
+                )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json().get("detail"), "Captcha verification failed")
+
+    def test_login_with_turnstile_success_when_secret_is_configured(self):
+        class _MockResp:
+            def json(self):
+                return {"success": True}
+
+        with patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": "secret-key"}, clear=False):
+            with patch("app.routes.auth.requests.post", return_value=_MockResp()):
+                response = self.client.post(
+                    "/api/auth/login",
+                    json={
+                        "identifier": "admin@example.com",
+                        "password": "Admin@123",
+                        "turnstile_token": "valid-token",
+                    },
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json().get("access_token"))
+
     def test_admin_routes_users_and_rotate_key(self):
         admin_user = {
             "_id": ObjectId("65f1f1f1f1f1f1f1f1f1f1f2"),

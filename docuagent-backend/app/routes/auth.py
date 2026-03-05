@@ -5,7 +5,8 @@ import re
 import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -81,6 +82,7 @@ class LoginPayload(BaseModel):
     identifier: str | None = None
     email: str | None = None
     password: str = Field(min_length=1, max_length=128)
+    turnstile_token: str | None = None
 
 
 def _public_user(user: dict[str, Any]) -> dict[str, Any]:
@@ -125,6 +127,47 @@ def _normalize_username_display(raw: str) -> str:
             detail="Username must be 3-32 chars, using only letters, numbers, or underscore.",
         )
     return username
+
+
+def _turnstile_secret_key() -> str:
+    return str(os.getenv("TURNSTILE_SECRET_KEY") or "").strip()
+
+
+def _turnstile_enabled() -> bool:
+    return bool(_turnstile_secret_key())
+
+
+def _verify_turnstile_or_raise(token: str | None, remote_ip: str | None = None) -> None:
+    secret = _turnstile_secret_key()
+    if not secret:
+        return
+
+    response_token = str(token or "").strip()
+    if not response_token:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Captcha is required")
+
+    payload = {
+        "secret": secret,
+        "response": response_token,
+    }
+    if remote_ip:
+        payload["remoteip"] = remote_ip
+
+    try:
+        verify_response = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data=payload,
+            timeout=5,
+        )
+        verify_data = verify_response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Captcha verification service is unavailable",
+        ) from exc
+
+    if not bool(verify_data.get("success")):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Captcha verification failed")
 
 
 def _validate_password_strength(password: str) -> None:
@@ -212,8 +255,11 @@ def register(payload: RegisterPayload):
 
 
 @router.post("/login")
-def login(payload: LoginPayload, response: Response):
+def login(payload: LoginPayload, request: Request, response: Response):
     ensure_admin_user()
+    remote_ip = request.client.host if request.client else None
+    _verify_turnstile_or_raise(payload.turnstile_token, remote_ip=remote_ip)
+
     users = get_users_collection()
     raw_identifier = str(payload.identifier or payload.email or "").strip()
     if not raw_identifier:
