@@ -25,6 +25,7 @@ function ParticleBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
     let animationId;
     let particles = [];
     let mouse = { x: null, y: null, radius: 150 };
@@ -273,6 +274,16 @@ function PasswordStrengthBar({ score, label }) {
 function TurnstileWidget({ siteKey, resetSignal, onTokenChange, onError }) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
+  const onTokenChangeRef = useRef(onTokenChange);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onTokenChangeRef.current = onTokenChange;
+  }, [onTokenChange]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) return undefined;
@@ -291,11 +302,19 @@ function TurnstileWidget({ siteKey, resetSignal, onTokenChange, onError }) {
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         action: "login",
-        callback: (token) => onTokenChange(String(token || "")),
-        "expired-callback": () => onTokenChange(""),
+        callback: (token) => onTokenChangeRef.current(String(token || "")),
+        "expired-callback": () => onTokenChangeRef.current(""),
+        "timeout-callback": () => {
+          onTokenChangeRef.current("");
+          if (onErrorRef.current) onErrorRef.current("Captcha timed out. Please try again.");
+        },
+        "unsupported-callback": () => {
+          onTokenChangeRef.current("");
+          if (onErrorRef.current) onErrorRef.current("Captcha is unsupported in this browser/device.");
+        },
         "error-callback": () => {
-          onTokenChange("");
-          if (onError) onError();
+          onTokenChangeRef.current("");
+          if (onErrorRef.current) onErrorRef.current("Captcha failed to load. Refresh and try again.");
         },
       });
     };
@@ -336,7 +355,7 @@ function TurnstileWidget({ siteKey, resetSignal, onTokenChange, onError }) {
       });
 
     ensureScript().then(renderWidget).catch(() => {
-      if (onError) onError();
+      if (onErrorRef.current) onErrorRef.current("Captcha failed to load. Refresh and try again.");
     });
 
     return () => {
@@ -350,20 +369,22 @@ function TurnstileWidget({ siteKey, resetSignal, onTokenChange, onError }) {
         widgetIdRef.current = null;
       }
     };
-  }, [siteKey, onTokenChange, onError]);
+  }, [siteKey]);
 
   useEffect(() => {
     if (widgetIdRef.current !== null && window.turnstile) {
       window.turnstile.reset(widgetIdRef.current);
-      onTokenChange("");
+      onTokenChangeRef.current("");
     }
-  }, [resetSignal, onTokenChange]);
+  }, [resetSignal]);
 
   return <div ref={containerRef} className="green-turnstile" />;
 }
 
-function Login({ onLogin }) {
-  const turnstileSiteKey = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || "").trim();
+function Login({ onLogin, turnstileSiteKeyOverride }) {
+  const turnstileSiteKey = String(
+    turnstileSiteKeyOverride ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "",
+  ).trim();
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -644,12 +665,23 @@ function Login({ onLogin }) {
                     {showLoginPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
                   </button>
                 </label>
-                <TurnstileWidget
-                  siteKey={turnstileSiteKey}
-                  resetSignal={turnstileResetSignal}
-                  onTokenChange={setTurnstileToken}
-                  onError={() => setError("Captcha failed to load. Refresh and try again.")}
-                />
+                {turnstileSiteKey && (
+                  <div className="green-captcha-wrap">
+                    <p className="green-captcha-label">Security Check</p>
+                    <TurnstileWidget
+                      siteKey={turnstileSiteKey}
+                      resetSignal={turnstileResetSignal}
+                      onTokenChange={setTurnstileToken}
+                      onError={(msg) => setError(msg || "Captcha failed to load. Refresh and try again.")}
+                    />
+                  </div>
+                )}
+                {!turnstileSiteKey && (
+                  <span className="green-inline-msg bad" role="alert" aria-live="polite">
+                    <IconAlert size={12} />
+                    Captcha is not configured. Set VITE_TURNSTILE_SITE_KEY in frontend env.
+                  </span>
+                )}
               </>
             )}
 

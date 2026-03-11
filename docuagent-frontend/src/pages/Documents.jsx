@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import DocumentTable from "../components/DocumentTable";
 import InfoHint from "../components/InfoHint";
 import { RISK_FILTERS, prettyRisk } from "../utils";
@@ -9,19 +9,27 @@ function Documents({ documents, loading, onView, onDelete }) {
   const [query, setQuery] = useState("");
   const [risk, setRisk] = useState("All");
   const [page, setPage] = useState(1);
+  const deferredQuery = useDeferredValue(query);
+
+  const indexedDocuments = useMemo(
+    () =>
+      documents.map((doc) => ({
+        doc,
+        searchText: `${String(doc.filename || "")} ${String(doc.title || "")} ${String(doc.document_type || "")}`.toLowerCase(),
+      })),
+    [documents],
+  );
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return documents.filter((doc) => {
+    const q = deferredQuery.trim().toLowerCase();
+    return indexedDocuments
+      .filter(({ doc, searchText }) => {
       const passRisk = risk === "All" || prettyRisk(doc.overall_risk_level) === risk;
-      const passQuery =
-        !q ||
-        String(doc.filename || "").toLowerCase().includes(q) ||
-        String(doc.title || "").toLowerCase().includes(q) ||
-        String(doc.document_type || "").toLowerCase().includes(q);
+      const passQuery = !q || searchText.includes(q);
       return passRisk && passQuery;
-    });
-  }, [documents, query, risk]);
+      })
+      .map(({ doc }) => doc);
+  }, [indexedDocuments, deferredQuery, risk]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -43,6 +51,7 @@ function Documents({ documents, loading, onView, onDelete }) {
         </div>
         <div className="filters-row">
           <input
+            aria-label="Search documents"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -51,6 +60,7 @@ function Documents({ documents, loading, onView, onDelete }) {
             placeholder="Search documents..."
           />
           <select
+            aria-label="Filter by risk"
             value={risk}
             onChange={(e) => {
               setRisk(e.target.value);

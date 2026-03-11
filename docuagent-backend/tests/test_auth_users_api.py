@@ -114,6 +114,7 @@ class AuthUsersApiTests(unittest.TestCase):
         app.dependency_overrides.clear()
         self.users = FakeUsersCollection()
         self._patchers = [
+            patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": ""}, clear=False),
             patch("app.routes.auth.ensure_admin_user", lambda: None),
             patch("app.routes.auth.get_users_collection", return_value=self.users),
             patch("app.routes.users.get_users_collection", return_value=self.users),

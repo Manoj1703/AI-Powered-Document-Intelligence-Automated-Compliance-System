@@ -138,9 +138,9 @@ def _turnstile_enabled() -> bool:
 
 
 def _verify_turnstile_or_raise(token: str | None, remote_ip: str | None = None) -> None:
-    secret = _turnstile_secret_key()
-    if not secret:
+    if not _turnstile_enabled():
         return
+    secret = _turnstile_secret_key()
 
     response_token = str(token or "").strip()
     if not response_token:

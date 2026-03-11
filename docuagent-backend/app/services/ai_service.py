@@ -3,6 +3,7 @@
 import json
 import os
 import socket
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -10,8 +11,9 @@ from dotenv import load_dotenv
 import httpx
 from openai import OpenAI
 
-# Load .env values so local development can set API credentials.
-load_dotenv()
+# Load .env values from backend root so startup works from any working directory.
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(dotenv_path=_BACKEND_ROOT / ".env")
 
 # Support either custom variable names or standard OpenAI names.
 api_key = os.getenv("API_TOKEN") or os.getenv("OPENAI_API_KEY")

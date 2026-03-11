@@ -1,4 +1,8 @@
-﻿venv/
+venv/
+.venv/
+.venv311/
 __pycache__/
+.pytest_cache/
+.tmp/
 *.pyc
 .env
