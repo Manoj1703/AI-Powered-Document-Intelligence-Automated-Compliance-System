@@ -2,8 +2,17 @@
 
 ## Stack
 - React 18
-- Vite 5
+- Vite 7
 - Plain CSS
+
+## What Users Can Do
+
+- log in securely
+- upload documents
+- view AI-generated summaries and risk insights
+- filter documents
+- inspect detailed document analysis
+- manage users and roles when signed in as admin
 
 ## Run
 1. Install Node.js 18+.
@@ -16,6 +25,8 @@
    npm run dev
    ```
 
+For local use, no frontend env file is required if the backend runs on `http://localhost:8003`.
+
 ## Environment (`docuagent-frontend/.env`)
 
 ```env
@@ -24,7 +35,7 @@ VITE_TURNSTILE_SITE_KEY=
 ```
 
 - `VITE_API_BASE_URL` defaults to `http://localhost:8003` if unset.
-- `VITE_TURNSTILE_SITE_KEY` enables captcha widget rendering on login.
+- `VITE_TURNSTILE_SITE_KEY` is optional and enables captcha on login.
 
 ## Tests
 

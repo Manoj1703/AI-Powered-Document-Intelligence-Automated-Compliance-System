@@ -21,11 +21,25 @@ except ModuleNotFoundError as exc:
 
 
 TOKEN_TTL_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "86400"))
-JWT_SECRET = str(os.getenv("JWT_SECRET") or "").strip()
-if not JWT_SECRET:
-    raise RuntimeError("JWT_SECRET must be configured.")
-if len(JWT_SECRET) < 32:
-    raise RuntimeError("JWT_SECRET must be at least 32 characters.")
+
+
+def _is_production_env() -> bool:
+    env = str(os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
+    return env in {"production", "prod"}
+
+
+def _jwt_secret_from_env() -> str:
+    configured = str(os.getenv("JWT_SECRET") or "").strip()
+    if configured:
+        if len(configured) < 32:
+            raise RuntimeError("JWT_SECRET must be at least 32 characters.")
+        return configured
+    if _is_production_env():
+        raise RuntimeError("JWT_SECRET must be configured in production.")
+    return "dev-only-jwt-secret-change-me-before-production-2026"
+
+
+JWT_SECRET = _jwt_secret_from_env()
 JWT_ALG = "HS256"
 bearer_scheme = HTTPBearer(auto_error=False)
 ADMIN_ROLES = {"admin", "super_admin"}

@@ -1,112 +1,62 @@
 # Environment Setup
 
-This project uses separate env files for frontend and backend.
+## Minimum Local Setup
 
-## Frontend (`docuagent-frontend/.env`)
+The backend only needs these values for normal local use:
 
-Required:
+```env
+MONGO_URI=<your-mongodb-uri>
+OPENAI_API_KEY=<your-openai-key>
+```
+
+Put them in:
+
+```text
+docuagent-backend/.env
+```
+
+The frontend does not require a local env file for standard use because it already defaults to:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8003
 ```
 
-Optional (Captcha):
+## Optional Local Variables
+
+Only add these if you actually need the related feature:
 
 ```env
-VITE_TURNSTILE_SITE_KEY=<cloudflare-turnstile-site-key>
-```
-
-Notes:
-- Do not put secret keys in frontend env.
-- `VITE_` variables are exposed to the browser by design.
-
-## Backend (`docuagent-backend/.env`)
-
-Required:
-
-```env
-MONGO_URI=<mongo-uri>
 JWT_SECRET=<long-random-secret>
-```
-
-Recommended:
-
-```env
-APP_ENV=development
+TURNSTILE_SECRET_KEY=<cloudflare-turnstile-secret-key>
+API_BASE_URL=<custom-openai-compatible-base-url>
+OPENAI_BASE_URL=<custom-openai-compatible-base-url>
+OPENAI_MODEL=gpt-4o-mini
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-Optional (Captcha verification):
+## Local Run Commands
 
-```env
-TURNSTILE_SECRET_KEY=<cloudflare-turnstile-secret-key>
+Backend:
+
+```bash
+cd docuagent-backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8003
 ```
 
-Behavior:
-- If `TURNSTILE_SECRET_KEY` is set, login requires valid Turnstile token.
-- If unset, backend skips captcha verification.
+Frontend:
 
-## Captcha Wiring Checklist
-
-1. Create Turnstile widget in Cloudflare.
-2. Add hostnames: `localhost`, `127.0.0.1`.
-3. Set frontend `VITE_TURNSTILE_SITE_KEY`.
-4. Set backend `TURNSTILE_SECRET_KEY`.
-5. Restart both servers.
-
-## Common Mistakes
-
-- Putting keys in `.env.example` only (app does not load it automatically).
-- Swapping site key and secret key.
-- Not restarting dev servers after env updates.
-- Missing hostname entries in Cloudflare widget config.
-
-## Deployment
-
-### Backend on Render
-
-This repo now includes a root [`render.yaml`](./render.yaml) blueprint for the FastAPI backend.
-
-Important production env values:
-
-```env
-APP_ENV=production
-COOKIE_SECURE=true
-COOKIE_SAMESITE=none
-CORS_ORIGINS=https://<your-vercel-app>.vercel.app
-MONGO_URI=<your-mongodb-uri>
-JWT_SECRET=<long-random-secret>
+```bash
+cd docuagent-frontend
+npm install
+npm run dev
 ```
 
-Optional backend production env values:
+## Default Local Addresses
 
-```env
-TURNSTILE_SECRET_KEY=<cloudflare-turnstile-secret-key>
-OPENAI_API_KEY=<your-openai-key>
-```
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:8003`
 
-### Frontend on Vercel
+## Production Note
 
-Deploy the `docuagent-frontend` folder as the Vercel project root.
-
-Required frontend env values:
-
-```env
-VITE_API_BASE_URL=https://<your-render-backend>.onrender.com
-```
-
-Optional frontend env values:
-
-```env
-VITE_TURNSTILE_SITE_KEY=<cloudflare-turnstile-site-key>
-```
-
-### Deployment Order
-
-1. Deploy backend to Render first and copy its public URL.
-2. Set `VITE_API_BASE_URL` in Vercel to the Render backend URL.
-3. Deploy frontend to Vercel and copy its public URL.
-4. Update backend `CORS_ORIGINS` to the Vercel frontend URL.
-5. If using Turnstile, add both production domains in Cloudflare:
-   - frontend domain (`*.vercel.app` or custom domain)
-   - backend domain (`*.onrender.com` or custom domain)
+For production deployment, set a real `JWT_SECRET`. The built-in fallback is only for local development convenience.
