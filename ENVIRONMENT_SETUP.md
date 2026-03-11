@@ -60,3 +60,53 @@ Behavior:
 - Swapping site key and secret key.
 - Not restarting dev servers after env updates.
 - Missing hostname entries in Cloudflare widget config.
+
+## Deployment
+
+### Backend on Render
+
+This repo now includes a root [`render.yaml`](./render.yaml) blueprint for the FastAPI backend.
+
+Important production env values:
+
+```env
+APP_ENV=production
+COOKIE_SECURE=true
+COOKIE_SAMESITE=none
+CORS_ORIGINS=https://<your-vercel-app>.vercel.app
+MONGO_URI=<your-mongodb-uri>
+JWT_SECRET=<long-random-secret>
+```
+
+Optional backend production env values:
+
+```env
+TURNSTILE_SECRET_KEY=<cloudflare-turnstile-secret-key>
+OPENAI_API_KEY=<your-openai-key>
+```
+
+### Frontend on Vercel
+
+Deploy the `docuagent-frontend` folder as the Vercel project root.
+
+Required frontend env values:
+
+```env
+VITE_API_BASE_URL=https://<your-render-backend>.onrender.com
+```
+
+Optional frontend env values:
+
+```env
+VITE_TURNSTILE_SITE_KEY=<cloudflare-turnstile-site-key>
+```
+
+### Deployment Order
+
+1. Deploy backend to Render first and copy its public URL.
+2. Set `VITE_API_BASE_URL` in Vercel to the Render backend URL.
+3. Deploy frontend to Vercel and copy its public URL.
+4. Update backend `CORS_ORIGINS` to the Vercel frontend URL.
+5. If using Turnstile, add both production domains in Cloudflare:
+   - frontend domain (`*.vercel.app` or custom domain)
+   - backend domain (`*.onrender.com` or custom domain)
