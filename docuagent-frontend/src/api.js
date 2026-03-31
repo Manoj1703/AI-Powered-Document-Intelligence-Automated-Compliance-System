@@ -1,15 +1,52 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8003";
+const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8003";
+const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "").trim();
+
+function isLoopbackHost(hostname) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function isLoopbackUrl(value) {
+  try {
+    return isLoopbackHost(new URL(value).hostname || "");
+  } catch {
+    return false;
+  }
+}
+
+function resolveApiBaseUrl() {
+  const browserHost =
+    typeof window !== "undefined" ? String(window.location.hostname || "").trim() : "";
+  const isPublicTunnelHost = browserHost !== "" && !isLoopbackHost(browserHost);
+
+  if (rawApiBaseUrl && !(isPublicTunnelHost && isLoopbackUrl(rawApiBaseUrl))) {
+    return rawApiBaseUrl;
+  }
+
+  return isPublicTunnelHost ? "" : DEFAULT_LOCAL_API_BASE_URL;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const FALLBACK_API_BASE_URL = API_BASE_URL.includes("localhost")
   ? API_BASE_URL.replace("localhost", "127.0.0.1")
   : API_BASE_URL.includes("127.0.0.1")
     ? API_BASE_URL.replace("127.0.0.1", "localhost")
     : "";
 
+function buildRequestUrl(baseUrl, path) {
+  return baseUrl ? `${baseUrl}${path}` : path;
+}
+
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function _networkError(baseUrl) {
+  if (!baseUrl) {
+    return new Error(
+      "Backend is not reachable through the current app host. Check the Vite proxy target and ensure the backend server is running.",
+    );
+  }
+
   const detail = (() => {
     try {
       const parsed = new URL(baseUrl);
@@ -27,7 +64,7 @@ function _networkError(baseUrl) {
 
 async function _tryFetch(baseUrl, path, options = {}) {
   try {
-    return await fetch(`${baseUrl}${path}`, {
+    return await fetch(buildRequestUrl(baseUrl, path), {
       credentials: "include",
       ...options,
     });
@@ -85,7 +122,7 @@ async function parseOrThrow(response, fallbackPrefix) {
 }
 
 export async function fetchHealth() {
-  const response = await apiFetch("/");
+  const response = await apiFetch("/api/health");
   return parseOrThrow(response, "Health API failed");
 }
 

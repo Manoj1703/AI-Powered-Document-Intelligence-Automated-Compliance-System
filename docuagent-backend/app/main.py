@@ -50,10 +50,10 @@ def _is_db_unavailable(exc: Exception) -> bool:
 async def lifespan(_app: FastAPI):
     # Ensure the unique admin account exists if configured via env.
     try:
-      ensure_admin_user()
+        ensure_admin_user()
     except Exception as exc:
-      # Allow API process to start even when DB is temporarily unreachable.
-      print(f"[startup-warning] ensure_admin_user skipped: {exc}")
+        # Allow API process to start even when DB is temporarily unreachable.
+        print(f"[startup-warning] ensure_admin_user skipped: {exc}")
     yield
 
 
@@ -74,6 +74,11 @@ app.add_middleware(
 # Healthcheck API: confirms backend is running.
 @app.get("/")
 def healthcheck():
+    return {"status": "ok", "service": "DocuAgent Backend"}
+
+
+@app.get("/api/health")
+def api_healthcheck():
     return {"status": "ok", "service": "DocuAgent Backend"}
 
 

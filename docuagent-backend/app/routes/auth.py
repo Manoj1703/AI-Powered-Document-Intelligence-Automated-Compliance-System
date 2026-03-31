@@ -17,6 +17,7 @@ try:
         create_access_token,
         create_new_admin_creation_key,
         ensure_admin_user,
+        ensure_auth_storage,
         get_current_user,
         hash_password,
         require_super_admin,
@@ -34,6 +35,7 @@ except ModuleNotFoundError as exc:
         create_access_token,
         create_new_admin_creation_key,
         ensure_admin_user,
+        ensure_auth_storage,
         get_current_user,
         hash_password,
         require_super_admin,
@@ -133,8 +135,24 @@ def _turnstile_secret_key() -> str:
     return str(os.getenv("TURNSTILE_SECRET_KEY") or "").strip()
 
 
+def _env_flag(name: str) -> bool | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    value = str(raw).strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
 def _turnstile_enabled() -> bool:
-    return bool(_turnstile_secret_key())
+    enabled_override = _env_flag("TURNSTILE_ENABLED")
+    has_secret = bool(_turnstile_secret_key())
+    if enabled_override is not None:
+        return enabled_override and has_secret
+    return has_secret
 
 
 def _verify_turnstile_or_raise(token: str | None, remote_ip: str | None = None) -> None:
@@ -157,7 +175,7 @@ def _verify_turnstile_or_raise(token: str | None, remote_ip: str | None = None) 
         verify_response = requests.post(
             "https://challenges.cloudflare.com/turnstile/v0/siteverify",
             data=payload,
-            timeout=5,
+            timeout=(2.0, 2.5),
         )
         verify_data = verify_response.json()
     except (requests.RequestException, ValueError) as exc:
@@ -189,7 +207,7 @@ def _validate_password_strength(password: str) -> None:
 
 @router.get("/signup-meta")
 def signup_meta():
-    ensure_admin_user()
+    ensure_auth_storage()
     exists = admin_exists()
     key_exists = admin_creation_key_exists()
     return {
@@ -256,7 +274,6 @@ def register(payload: RegisterPayload):
 
 @router.post("/login")
 def login(payload: LoginPayload, request: Request, response: Response):
-    ensure_admin_user()
     remote_ip = request.client.host if request.client else None
     _verify_turnstile_or_raise(payload.turnstile_token, remote_ip=remote_ip)
 
@@ -267,10 +284,10 @@ def login(payload: LoginPayload, request: Request, response: Response):
 
     if "@" in raw_identifier:
         email = _normalize_email(raw_identifier)
-        user = users.find_one({"email": email})
+        user = users.find_one({"email": email}, {"email": 1, "role": 1, "username": 1, "username_display": 1, "password_hash": 1})
     else:
         username = _normalize_username(raw_identifier)
-        user = users.find_one({"username": username})
+        user = users.find_one({"username": username}, {"email": 1, "role": 1, "username": 1, "username_display": 1, "password_hash": 1})
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 

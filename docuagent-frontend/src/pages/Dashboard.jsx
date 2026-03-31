@@ -110,11 +110,119 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
 
   return (
     <section className="page-stack dashboard-page">
+      <article className="glass-card panel dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <p className="micro-label">DocuAgent Intelligence Suite</p>
+          <h2>Sharper compliance visibility with a calmer, premium workspace.</h2>
+          <p className="dashboard-hero-text">
+            Monitor legal exposure, surface high-risk contracts faster, and move from document upload to executive review
+            without leaving the main canvas.
+          </p>
+          <div className="dashboard-hero-actions">
+            {canUpload && (
+              <button className="primary-button split-cta" type="button" onClick={onQuickUpload}>
+                <span>Quick Upload</span>
+                <span className="cta-orb" aria-hidden="true">
+                  ↗
+                </span>
+              </button>
+            )}
+            <button className="ghost-button hero-pill-button" type="button" onClick={() => onNavigate("documents")}>
+              Open Documents
+            </button>
+          </div>
+          <div className="dashboard-hero-stats">
+            <div className="hero-stat-chip">
+              <span className="micro-label">Risk Score</span>
+              <strong>{riskScore}/100</strong>
+            </div>
+            <div className="hero-stat-chip">
+              <span className="micro-label">Reviewed</span>
+              <strong>{reviewed}</strong>
+            </div>
+            <div className="hero-stat-chip">
+              <span className="micro-label">Priority Queue</span>
+              <strong>{high} high risk</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-hero-visual" aria-hidden="true">
+          <div className="hero-grid-lines" />
+          <div className="hero-watermark">DOCUAGENT</div>
+          <div className="hero-orbit">
+            <div className="hero-orbit-ring ring-outer" />
+            <div className="hero-orbit-ring ring-mid" />
+            <div className="hero-orbit-ring ring-inner" />
+            <div className="hero-orbit-center">
+              <span className="micro-label">Live Risk Mix</span>
+              <strong>{dominant.label}</strong>
+              <p>{dominant.pct}% dominant band</p>
+            </div>
+            {withPct.map((slice, index) => (
+              <div
+                key={`hero-node-${slice.label}`}
+                className={`hero-orbit-node node-${index + 1}`}
+                style={{ "--node-color": slice.color }}
+              >
+                <span>{slice.label}</span>
+                <strong>{slice.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="hero-metric-rail">
+            {withPct.map((slice) => (
+              <div key={`hero-bar-${slice.label}`} className="hero-metric-row">
+                <div className="hero-metric-head">
+                  <span>{slice.label}</span>
+                  <strong>{slice.pct}%</strong>
+                </div>
+                <div className="hero-metric-track">
+                  <div
+                    className="hero-metric-fill"
+                    style={{ width: `${slice.pct}%`, backgroundColor: slice.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hero-data-card">
+            <span className="micro-label">Active Focus</span>
+            <strong>{dominant.label} risk portfolio</strong>
+            <p>{dominant.pct}% of the current review window sits in this band.</p>
+          </div>
+          <div className="hero-badge-card">
+            <div className="hero-badge-top" />
+            <div className="hero-badge-body">
+              <span className="micro-label">Audit Preview</span>
+              <strong>{scopedDocs.length} live documents</strong>
+              <p>{documents.filter((doc) => inRange(toDate(doc.uploaded_at || doc.created_at), "today")).length} added today</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div className="dashboard-section-intro">
+        <div>
+          <p className="micro-label">Risk Snapshot</p>
+          <h3>Portfolio status at a glance</h3>
+        </div>
+        <p>Compact KPIs for review load, critical exposure, and trend direction.</p>
+      </div>
+
       <div className="stats-grid">
         <RiskCard label="Total Documents" value={scopedDocs.length} icon="DOC" trend={`${fmtDiff(totalDiff)} vs previous`} />
         <RiskCard label="High Risk" value={high} risk="high" icon="H" trend={`${fmtDiff(diffFor("high"))} this ${range}`} />
         <RiskCard label="Medium Risk" value={medium} risk="medium" icon="M" trend={`${fmtDiff(diffFor("medium"))} this ${range}`} />
         <RiskCard label="Low Risk" value={low} risk="low" icon="L" trend={`${fmtDiff(diffFor("low"))} this ${range}`} />
+      </div>
+
+      <div className="dashboard-section-intro">
+        <div>
+          <p className="micro-label">Deep View</p>
+          <h3>Analytics and operational guidance</h3>
+        </div>
+        <p>Distribution, insight, and action areas tuned for daily review workflows.</p>
       </div>
 
       <div className="dashboard-analytics-grid">

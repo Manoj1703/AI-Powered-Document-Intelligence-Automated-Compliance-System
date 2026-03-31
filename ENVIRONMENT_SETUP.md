@@ -36,21 +36,35 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 ## Local Run Commands
 
-Backend:
+From the project root:
 
 ```bash
-cd docuagent-backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8003
+python app.py
 ```
 
-Frontend:
+Or on Windows:
 
 ```bash
-cd docuagent-frontend
-npm install
+.\start-docuagent.cmd
+```
+
+Or, if npm scripts are enabled in your shell:
+
+```bash
 npm run dev
 ```
+
+This starts both services together:
+
+- frontend on `http://localhost:5173`
+- backend on `http://localhost:8003`
+
+If you want to run only one side:
+
+- `python app.py backend`
+- `python app.py frontend`
+- `.\start-docuagent.cmd backend`
+- `.\start-docuagent.cmd frontend`
 
 ## Default Local Addresses
 

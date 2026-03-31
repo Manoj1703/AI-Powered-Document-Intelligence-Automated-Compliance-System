@@ -26,25 +26,37 @@ MONGO_URI=<your-mongodb-uri>
 OPENAI_API_KEY=<your-openai-key>
 ```
 
-Then start the backend and frontend.
+Then start the whole app with one command from the project root.
 
 ## Run Locally
 
-Backend:
-
 ```bash
-cd docuagent-backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8003
+python app.py
 ```
 
-Frontend:
+Or on Windows:
 
 ```bash
-cd docuagent-frontend
-npm install
+.\start-docuagent.cmd
+```
+
+Or, if your shell allows npm scripts:
+
+```bash
 npm run dev
 ```
+
+All of these start both:
+
+- backend on `http://localhost:8003`
+- frontend on `http://localhost:5173`
+
+If you only want one side:
+
+- `python app.py backend`
+- `python app.py frontend`
+- `.\start-docuagent.cmd backend`
+- `.\start-docuagent.cmd frontend`
 
 Open the app at:
 
