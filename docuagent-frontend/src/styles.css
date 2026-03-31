@@ -29,6 +29,7 @@ body {
   text-rendering: optimizeLegibility;
   background: linear-gradient(160deg, #0f1720 0%, #152238 52%, #101926 100%);
   color: var(--text);
+  overflow-x: hidden;
 }
 
 body[data-theme="light"] {
@@ -54,12 +55,12 @@ body[data-theme="light"] {
 
 .app-shell {
   min-height: 100vh;
-  height: 100vh;
+  height: auto;
   display: flex;
   gap: 14px;
   padding: 14px clamp(8px, 0.9vw, 14px);
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sidebar {
@@ -4544,9 +4545,12 @@ body[data-theme="light"] {
 
 .app-shell {
   position: relative;
+  min-height: 100vh;
+  height: auto;
   gap: 20px;
   padding: 18px;
   isolation: isolate;
+  overflow: visible;
 }
 
 .shell-fog,
@@ -4671,6 +4675,7 @@ body[data-theme="light"] {
 
 .content-shell {
   position: relative;
+  min-height: 100%;
   padding: 4px 0 0;
   overflow: visible;
 }
