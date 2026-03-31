@@ -7,8 +7,10 @@ import json
 import os
 import secrets
 import time
+from threading import Lock
 from typing import Any
 
+from bson import ObjectId
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -21,6 +23,7 @@ except ModuleNotFoundError as exc:
 
 
 TOKEN_TTL_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "86400"))
+PASSWORD_HASH_ITERATIONS = int(os.getenv("PASSWORD_HASH_ITERATIONS", "120000"))
 
 
 def _is_production_env() -> bool:
@@ -43,6 +46,8 @@ JWT_SECRET = _jwt_secret_from_env()
 JWT_ALG = "HS256"
 bearer_scheme = HTTPBearer(auto_error=False)
 ADMIN_ROLES = {"admin", "super_admin"}
+_storage_init_lock = Lock()
+_storage_initialized = False
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -89,7 +94,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
-    iterations = 120_000
+    iterations = PASSWORD_HASH_ITERATIONS
     derived = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
@@ -114,16 +119,29 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(derived, hex_hash)
 
 
+def ensure_auth_storage() -> None:
+    global _storage_initialized
+    if _storage_initialized:
+        return
+
+    with _storage_init_lock:
+        if _storage_initialized:
+            return
+        users = get_users_collection()
+        users.create_index("email", unique=True)
+        users.create_index(
+            "username",
+            unique=True,
+            partialFilterExpression={"username": {"$type": "string"}},
+        )
+        users.create_index("role")
+        _storage_initialized = True
+
+
 def ensure_admin_user() -> None:
+    ensure_auth_storage()
     users = get_users_collection()
-    users.create_index("email", unique=True)
-    users.create_index(
-        "username",
-        unique=True,
-        partialFilterExpression={"username": {"$type": "string"}},
-    )
-    users.create_index("role")
-    if users.count_documents({"role": "super_admin"}) == 0:
+    if users.find_one({"role": "super_admin"}, {"_id": 1}) is None:
         first_admin = users.find_one(
             {"role": "admin"},
             sort=[("created_at", 1), ("_id", 1)],
@@ -133,8 +151,9 @@ def ensure_admin_user() -> None:
 
 
 def admin_exists() -> bool:
+    ensure_auth_storage()
     users = get_users_collection()
-    return users.count_documents({"role": {"$in": list(ADMIN_ROLES)}}) > 0
+    return users.find_one({"role": {"$in": list(ADMIN_ROLES)}}, {"_id": 1}) is not None
 
 
 def is_admin_role(role: Any) -> bool:
@@ -194,9 +213,15 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     payload = decode_access_token(token)
-    email = str(payload.get("email", "")).lower()
     users = get_users_collection()
-    user = users.find_one({"email": email}, {"password_hash": 0})
+    user_id = str(payload.get("sub") or "").strip()
+    query: dict[str, Any]
+    if user_id and ObjectId.is_valid(user_id):
+        query = {"_id": ObjectId(user_id)}
+    else:
+        query = {"email": str(payload.get("email", "")).lower()}
+
+    user = users.find_one(query, {"password_hash": 0})
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user

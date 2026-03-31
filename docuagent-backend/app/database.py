@@ -1,26 +1,30 @@
+import dns.resolver
 import os
-# This file sets up the connection to MongoDB and provides a helper function to access the collection.
+
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import ConfigurationError
-import dns.resolver
 
 # read environment variables
 load_dotenv()
+MONGO_URI = str(os.getenv("MONGO_URI") or "mongodb://localhost:27017").strip()
 
-MONGO_URI = os.getenv("MONGO_URI")
-
-if not MONGO_URI:
-    raise Exception("MONGO_URI is not configured.")
 
 class DatabaseUnavailableError(RuntimeError):
-    pass
+    """Raised when the application cannot reach MongoDB."""
 
 
 def _build_client(uri: str) -> MongoClient:
     # Keep failure detection quick during startup.
-    return MongoClient(uri, serverSelectionTimeoutMS=2500, connectTimeoutMS=2500)
+    return MongoClient(
+        uri,
+        serverSelectionTimeoutMS=2500,
+        connectTimeoutMS=2500,
+        socketTimeoutMS=2500,
+        waitQueueTimeoutMS=2500,
+        maxPoolSize=20,
+    )
 
 
 def _connect_with_dns_fallback(uri: str) -> MongoClient:

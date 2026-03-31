@@ -63,6 +63,9 @@ class FakeUsersCollection:
             },
         ]
 
+    def create_index(self, *_args, **_kwargs):
+        return None
+
     def find_one(self, query, _projection=None):
         for doc in self.docs:
             if all(doc.get(k) == v for k, v in query.items()):
@@ -113,9 +116,11 @@ class AuthUsersApiTests(unittest.TestCase):
     def setUp(self):
         app.dependency_overrides.clear()
         self.users = FakeUsersCollection()
+        auth_core._storage_initialized = False
         self._patchers = [
             patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": ""}, clear=False),
             patch("app.routes.auth.ensure_admin_user", lambda: None),
+            patch("app.auth.get_users_collection", return_value=self.users),
             patch("app.routes.auth.get_users_collection", return_value=self.users),
             patch("app.routes.users.get_users_collection", return_value=self.users),
             patch(
@@ -132,6 +137,7 @@ class AuthUsersApiTests(unittest.TestCase):
     def tearDown(self):
         for patcher in reversed(self._patchers):
             patcher.stop()
+        auth_core._storage_initialized = False
         app.dependency_overrides.clear()
 
     def test_openapi_has_expected_paths(self):

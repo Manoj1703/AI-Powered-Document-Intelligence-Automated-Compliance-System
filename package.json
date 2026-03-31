@@ -1,18 +1,13 @@
 {
-  "name": "docuagent-frontend",
+  "name": "ai-doc-workspace",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "vite": "^5.4.8"
+    "dev": "python app.py",
+    "dev:frontend": "python app.py frontend",
+    "dev:backend": "python app.py backend",
+    "build": "npm --prefix docuagent-frontend run build",
+    "preview": "npm --prefix docuagent-frontend run preview",
+    "test": "npm --prefix docuagent-frontend run test:run"
   }
 }
