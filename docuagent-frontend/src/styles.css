@@ -4916,7 +4916,13 @@ body[data-theme="light"] .content-frame {
   border-radius: 50%;
   background: #1a1a1a;
   color: #fff;
+  font-size: 0;
+}
+
+.cta-orb::before {
+  content: ">";
   font-size: 0.95rem;
+  line-height: 1;
 }
 
 .hero-pill-button {
@@ -5485,15 +5491,15 @@ html {
 
 .hero-watermark {
   bottom: 10px;
-  left: 12px;
+  left: 20px;
   font-size: clamp(4.4rem, 8vw, 7.4rem);
   color: rgba(255, 255, 255, 0.42);
 }
 
 .hero-orbit {
   position: absolute;
-  inset: 50% auto auto 55%;
-  width: min(26vw, 320px);
+  inset: 46% auto auto 54%;
+  width: min(24vw, 288px);
   aspect-ratio: 1;
   transform: translate(-50%, -44%);
   border-radius: 50%;
@@ -5581,8 +5587,9 @@ html {
 .hero-metric-rail {
   position: absolute;
   left: 24px;
-  right: 200px;
-  bottom: 24px;
+  right: 228px;
+  bottom: 28px;
+  z-index: 2;
   display: grid;
   gap: 10px;
 }
@@ -5597,6 +5604,11 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.hero-metric-head strong {
+  min-width: 44px;
+  text-align: right;
 }
 
 .hero-metric-head span {
@@ -5623,20 +5635,23 @@ html {
 }
 
 .hero-data-card {
-  max-width: 206px;
+  max-width: 188px;
   z-index: 2;
 }
 
 .hero-badge-card {
+  right: 24px;
+  bottom: 24px;
+  width: 176px;
   z-index: 2;
 }
 
 .dashboard-section-intro {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 360px);
   align-items: end;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 2px 4px 0;
+  gap: 14px 24px;
+  padding: 10px 4px 2px;
   border-top: 1px solid rgba(24, 24, 24, 0.08);
 }
 
@@ -5648,10 +5663,11 @@ html {
 }
 
 .dashboard-section-intro > p {
-  max-width: 38ch;
+  max-width: 30ch;
   margin: 0;
   font-size: 0.9rem;
   text-align: right;
+  justify-self: end;
 }
 
 .stats-grid {
@@ -5724,7 +5740,7 @@ html {
   .hero-orbit {
     position: relative;
     inset: auto;
-    width: min(72vw, 300px);
+    width: min(72vw, 284px);
     margin: 12px auto 0;
     transform: none;
   }
@@ -5744,13 +5760,14 @@ html {
   }
 
   .dashboard-section-intro {
+    grid-template-columns: 1fr;
     align-items: start;
-    flex-direction: column;
   }
 
   .dashboard-section-intro > p {
     max-width: none;
     text-align: left;
+    justify-self: start;
   }
 }
 
