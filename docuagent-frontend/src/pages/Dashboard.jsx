@@ -110,6 +110,61 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
 
   return (
     <section className="page-stack dashboard-page">
+      <article className="glass-card panel dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <p className="micro-label">DocuAgent Intelligence Suite</p>
+          <h2>Sharper compliance visibility with a calmer, premium workspace.</h2>
+          <p className="dashboard-hero-text">
+            Monitor legal exposure, surface high-risk contracts faster, and move from document upload to executive review
+            without leaving the main canvas.
+          </p>
+          <div className="dashboard-hero-actions">
+            {canUpload && (
+              <button className="primary-button split-cta" type="button" onClick={onQuickUpload}>
+                <span>Quick Upload</span>
+                <span className="cta-orb" aria-hidden="true">
+                  ↗
+                </span>
+              </button>
+            )}
+            <button className="ghost-button hero-pill-button" type="button" onClick={() => onNavigate("documents")}>
+              Open Documents
+            </button>
+          </div>
+          <div className="dashboard-hero-stats">
+            <div className="hero-stat-chip">
+              <span className="micro-label">Risk Score</span>
+              <strong>{riskScore}/100</strong>
+            </div>
+            <div className="hero-stat-chip">
+              <span className="micro-label">Reviewed</span>
+              <strong>{reviewed}</strong>
+            </div>
+            <div className="hero-stat-chip">
+              <span className="micro-label">Priority Queue</span>
+              <strong>{high} high risk</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-hero-visual" aria-hidden="true">
+          <div className="hero-watermark">DOCUAGENT</div>
+          <div className="hero-data-card">
+            <span className="micro-label">Active Focus</span>
+            <strong>{dominant.label} risk portfolio</strong>
+            <p>{dominant.pct}% of the current review window sits in this band.</p>
+          </div>
+          <div className="hero-badge-card">
+            <div className="hero-badge-top" />
+            <div className="hero-badge-body">
+              <span className="micro-label">Audit Preview</span>
+              <strong>{scopedDocs.length} live documents</strong>
+              <p>{documents.filter((doc) => inRange(toDate(doc.uploaded_at || doc.created_at), "today")).length} added today</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
       <div className="stats-grid">
         <RiskCard label="Total Documents" value={scopedDocs.length} icon="DOC" trend={`${fmtDiff(totalDiff)} vs previous`} />
         <RiskCard label="High Risk" value={high} risk="high" icon="H" trend={`${fmtDiff(diffFor("high"))} this ${range}`} />

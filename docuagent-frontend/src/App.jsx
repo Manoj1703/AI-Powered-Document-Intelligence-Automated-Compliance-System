@@ -470,6 +470,10 @@ function App() {
 
   return (
     <div className="app-shell">
+      <div className="shell-fog shell-fog-a" aria-hidden="true" />
+      <div className="shell-fog shell-fog-b" aria-hidden="true" />
+      <div className="shell-grain" aria-hidden="true" />
+
       <Sidebar
         items={navItems}
         currentPage={currentPage}
@@ -479,19 +483,26 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <div className="content-shell">
-        <Topbar
-          theme={theme}
-          onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          backendHealth={health}
-          user={session.user}
-          notifications={notificationCount}
-          onNotificationsClick={() => setCurrentPage("activity")}
-        />
+      <div className="content-shell" data-page={currentPage}>
+        <div className="content-ghostmark" aria-hidden="true">
+          <span>DOCU</span>
+          <span>AGENT</span>
+        </div>
 
-        {globalError && <p className="error-banner toast-in">{globalError}</p>}
-        <div key={currentPage} className="page-transition">
-          {renderPage()}
+        <div className="content-frame glass-card">
+          <Topbar
+            theme={theme}
+            onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            backendHealth={health}
+            user={session.user}
+            notifications={notificationCount}
+            onNotificationsClick={() => setCurrentPage("activity")}
+          />
+
+          {globalError && <p className="error-banner toast-in">{globalError}</p>}
+          <div key={currentPage} className="page-transition">
+            {renderPage()}
+          </div>
         </div>
       </div>
 
