@@ -148,7 +148,44 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
         </div>
 
         <div className="dashboard-hero-visual" aria-hidden="true">
+          <div className="hero-grid-lines" />
           <div className="hero-watermark">DOCUAGENT</div>
+          <div className="hero-orbit">
+            <div className="hero-orbit-ring ring-outer" />
+            <div className="hero-orbit-ring ring-mid" />
+            <div className="hero-orbit-ring ring-inner" />
+            <div className="hero-orbit-center">
+              <span className="micro-label">Live Risk Mix</span>
+              <strong>{dominant.label}</strong>
+              <p>{dominant.pct}% dominant band</p>
+            </div>
+            {withPct.map((slice, index) => (
+              <div
+                key={`hero-node-${slice.label}`}
+                className={`hero-orbit-node node-${index + 1}`}
+                style={{ "--node-color": slice.color }}
+              >
+                <span>{slice.label}</span>
+                <strong>{slice.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="hero-metric-rail">
+            {withPct.map((slice) => (
+              <div key={`hero-bar-${slice.label}`} className="hero-metric-row">
+                <div className="hero-metric-head">
+                  <span>{slice.label}</span>
+                  <strong>{slice.pct}%</strong>
+                </div>
+                <div className="hero-metric-track">
+                  <div
+                    className="hero-metric-fill"
+                    style={{ width: `${slice.pct}%`, backgroundColor: slice.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="hero-data-card">
             <span className="micro-label">Active Focus</span>
             <strong>{dominant.label} risk portfolio</strong>
@@ -165,11 +202,27 @@ function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isA
         </div>
       </article>
 
+      <div className="dashboard-section-intro">
+        <div>
+          <p className="micro-label">Risk Snapshot</p>
+          <h3>Portfolio status at a glance</h3>
+        </div>
+        <p>Compact KPIs for review load, critical exposure, and trend direction.</p>
+      </div>
+
       <div className="stats-grid">
         <RiskCard label="Total Documents" value={scopedDocs.length} icon="DOC" trend={`${fmtDiff(totalDiff)} vs previous`} />
         <RiskCard label="High Risk" value={high} risk="high" icon="H" trend={`${fmtDiff(diffFor("high"))} this ${range}`} />
         <RiskCard label="Medium Risk" value={medium} risk="medium" icon="M" trend={`${fmtDiff(diffFor("medium"))} this ${range}`} />
         <RiskCard label="Low Risk" value={low} risk="low" icon="L" trend={`${fmtDiff(diffFor("low"))} this ${range}`} />
+      </div>
+
+      <div className="dashboard-section-intro">
+        <div>
+          <p className="micro-label">Deep View</p>
+          <h3>Analytics and operational guidance</h3>
+        </div>
+        <p>Distribution, insight, and action areas tuned for daily review workflows.</p>
       </div>
 
       <div className="dashboard-analytics-grid">
