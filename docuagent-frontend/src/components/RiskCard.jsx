@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { normalizeRisk } from "../utils";
 
-function RiskCard({ label, value, risk, icon, trend }) {
-  const tone = risk ? `risk-${normalizeRisk(risk)}` : "";
+function RiskCard({ label, value, tone = "total", badge = "AI", delta, deltaTone = "delta-same" }) {
   const target = Number(value) || 0;
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -25,13 +23,13 @@ function RiskCard({ label, value, risk, icon, trend }) {
   }, [target]);
 
   return (
-    <article className={`glass-card stat-card ${tone}`}>
-      <div className="stat-head">
-        <p className="card-label">{label}</p>
-        {icon && <span className="stat-icon">{icon}</span>}
-      </div>
-      <h3>{displayValue}</h3>
-      {trend && <p className="stat-trend">{trend}</p>}
+    <article className={`kpi-card ${tone} page-enter`}>
+      <span className="kpi-type" aria-hidden="true">
+        {badge}
+      </span>
+      <span className="kpi-label">{label}</span>
+      <span className="kpi-number">{displayValue}</span>
+      {delta ? <span className={`kpi-delta ${deltaTone.replace("delta-", "")}`}>{delta}</span> : null}
     </article>
   );
 }

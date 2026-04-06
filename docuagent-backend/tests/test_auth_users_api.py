@@ -142,7 +142,7 @@ class AuthUsersApiTests(unittest.TestCase):
 
     def test_openapi_has_expected_paths(self):
         expected = {
-            "/",
+            "/api/health",
             "/api/upload",
             "/api/documents",
             "/api/documents/{doc_id}",
@@ -209,7 +209,11 @@ class AuthUsersApiTests(unittest.TestCase):
             def json(self):
                 return {"success": False}
 
-        with patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": "secret-key"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {"TURNSTILE_SECRET_KEY": "secret-key", "TURNSTILE_ENABLED": "true"},
+            clear=False,
+        ):
             with patch("app.routes.auth.requests.post", return_value=_MockResp()):
                 response = self.client.post(
                     "/api/auth/login",
@@ -227,7 +231,11 @@ class AuthUsersApiTests(unittest.TestCase):
             def json(self):
                 return {"success": True}
 
-        with patch.dict(os.environ, {"TURNSTILE_SECRET_KEY": "secret-key"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {"TURNSTILE_SECRET_KEY": "secret-key", "TURNSTILE_ENABLED": "true"},
+            clear=False,
+        ):
             with patch("app.routes.auth.requests.post", return_value=_MockResp()):
                 response = self.client.post(
                     "/api/auth/login",

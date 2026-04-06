@@ -4,7 +4,7 @@ from pdfminer.pdftypes import PDFObjRef
 from pdfminer.psparser import PSLiteral
 from pdfminer.utils import PDFDocEncoding
 
-from .exceptions import MalformedPDFException
+from ..exceptions import MalformedPDFException
 
 
 def decode_text(s: Union[bytes, str]) -> str:

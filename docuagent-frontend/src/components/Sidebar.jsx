@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 
 function Icon({ name }) {
   const common = {
@@ -19,6 +19,15 @@ function Icon({ name }) {
         <rect x="13" y="3" width="8" height="5" rx="2" />
         <rect x="13" y="10" width="8" height="11" rx="2" />
         <rect x="3" y="13" width="8" height="8" rx="2" />
+      </svg>
+    );
+  }
+  if (name === "upload") {
+    return (
+      <svg {...common}>
+        <path d="M12 16V4" />
+        <path d="M7 9l5-5 5 5" />
+        <path d="M5 20v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
       </svg>
     );
   }
@@ -73,11 +82,12 @@ function Icon({ name }) {
       </svg>
     );
   }
-  return <span className="nav-item-fallback">•</span>;
+  return <span className="nav-item-fallback">.</span>;
 }
 
 const ICON_BY_KEY = {
   dashboard: "dashboard",
+  upload: "upload",
   documents: "documents",
   users: "users",
   analytics: "analytics",
@@ -85,73 +95,41 @@ const ICON_BY_KEY = {
   settings: "settings",
 };
 
-function Sidebar({ items, currentPage, collapsed, onToggle, onNavigate, onLogout }) {
-  const itemRefs = useRef([]);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
-  const [indicator, setIndicator] = useState({ y: 0, h: 0, visible: false });
-  const activeIndex = useMemo(() => items.findIndex((item) => item.key === currentPage), [items, currentPage]);
-  const targetIndex = hoveredIndex ?? activeIndex;
-
-  useLayoutEffect(() => {
-    if (targetIndex < 0) return;
-    const el = itemRefs.current[targetIndex];
-    if (!el) return;
-    setIndicator({
-      y: el.offsetTop,
-      h: el.offsetHeight,
-      visible: true,
-    });
-  }, [targetIndex, items, collapsed]);
-
+function Sidebar({ items, currentPage, onNavigate, onLogout }) {
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className="sidebar">
       <div className="sidebar-brand">
-        <button className="icon-button" onClick={onToggle} type="button" aria-label="Toggle sidebar">
-          {collapsed ? ">" : "<"}
-        </button>
-        {!collapsed && (
-          <div>
-            <h2>DocAgent</h2>
-            <p>Legal Risk Intelligence</p>
-          </div>
-        )}
+        <div className="monogram" aria-hidden="true">
+          DA
+        </div>
+        <div>
+          <p className="brand-tag">Legal Intelligence Premium</p>
+          <p className="brand-name">DocAgent</p>
+        </div>
       </div>
 
-      <nav className="sidebar-nav" onMouseLeave={() => setHoveredIndex(null)}>
-        <div className="sidebar-nav-list">
-          <span
-            className={`sidebar-hover-indicator ${indicator.visible ? "visible" : ""}`}
-            aria-hidden="true"
-            style={{
-              height: `${indicator.h}px`,
-              transform: `translate3d(0, ${indicator.y}px, 0)`,
-            }}
-          />
-          {items.map((item, index) => (
-            <button
-              key={item.key}
-              ref={(node) => {
-                itemRefs.current[index] = node;
-              }}
-              type="button"
-              className={`nav-link ${currentPage === item.key ? "active" : ""}`}
-              onClick={() => onNavigate(item.key)}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onFocus={() => setHoveredIndex(index)}
-              title={item.label}
-              aria-label={item.label}
-            >
-              <Icon name={ICON_BY_KEY[item.key]} />
-              {!collapsed && <span className="nav-label">{item.label}</span>}
-            </button>
-          ))}
-        </div>
+      <nav className="nav-group" aria-label="Primary">
+        {items.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={`nav-item ${currentPage === item.key ? "active" : ""}`}
+            onClick={() => onNavigate(item.key)}
+            title={item.label}
+            aria-label={item.label}
+          >
+            <Icon name={ICON_BY_KEY[item.key]} />
+            <span>{item.label}</span>
+          </button>
+        ))}
       </nav>
 
-      <button type="button" className="nav-link logout" onClick={onLogout} title="Logout" aria-label="Logout">
-        <Icon name="logout" />
-        {!collapsed && <span className="nav-label">Logout</span>}
-      </button>
+      <div className="sidebar-footer">
+        <button type="button" className="nav-item logout" onClick={onLogout} title="Logout" aria-label="Logout">
+          <Icon name="logout" />
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   );
 }

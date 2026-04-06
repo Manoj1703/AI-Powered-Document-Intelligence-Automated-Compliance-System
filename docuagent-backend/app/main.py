@@ -1,10 +1,11 @@
 # This file starts the backend server.
 # It creates the FastAPI app and connects all route files.
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 import os
 import traceback
@@ -22,6 +23,12 @@ except ModuleNotFoundError as exc:
     from auth import ensure_admin_user
     from database import DatabaseUnavailableError
     from routes import auth, dashboard, documents, upload, users
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = BACKEND_ROOT.parent
+FRONTEND_DIST_DIR = WORKSPACE_ROOT / "docuagent-frontend" / "dist"
+FRONTEND_INDEX_FILE = FRONTEND_DIST_DIR / "index.html"
 
 
 def _cors_origins() -> list[str]:
@@ -44,6 +51,22 @@ def _is_db_unavailable(exc: Exception) -> bool:
         return True
     message = str(exc).lower()
     return "mongodb is unreachable" in message or "database unavailable" in message
+
+
+def _frontend_build_ready() -> bool:
+    return FRONTEND_INDEX_FILE.is_file()
+
+
+def _safe_frontend_path(relative_path: str) -> Path | None:
+    if not relative_path:
+        return FRONTEND_INDEX_FILE
+
+    candidate = (FRONTEND_DIST_DIR / relative_path).resolve()
+    try:
+        candidate.relative_to(FRONTEND_DIST_DIR.resolve())
+    except ValueError:
+        return None
+    return candidate
 
 
 @asynccontextmanager
@@ -72,8 +95,10 @@ app.add_middleware(
 
 
 # Healthcheck API: confirms backend is running.
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def healthcheck():
+    if _frontend_build_ready():
+        return FileResponse(FRONTEND_INDEX_FILE)
     return {"status": "ok", "service": "DocuAgent Backend"}
 
 
@@ -123,3 +148,17 @@ app.include_router(documents.router)
 app.include_router(dashboard.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not _frontend_build_ready():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    file_path = _safe_frontend_path(full_path)
+    if file_path and file_path.is_file():
+        return FileResponse(file_path)
+
+    return FileResponse(FRONTEND_INDEX_FILE)

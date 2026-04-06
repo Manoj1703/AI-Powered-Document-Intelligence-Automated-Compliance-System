@@ -4,11 +4,13 @@ pymongo
 python-dotenv
 python-multipart
 pypdf
+pdfminer.six
 pdfplumber
 python-docx
 pandas
 openpyxl
 xlrd
 openai
+httpx
 requests
 dnspython

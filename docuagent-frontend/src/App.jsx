@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  deleteUserById,
   deleteDocumentById,
+  deleteUserById,
   fetchCurrentUser,
   fetchDashboardStats,
   fetchDocumentById,
@@ -15,9 +15,9 @@ import {
   updateUserRole,
   uploadDocument,
 } from "./api";
-import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import DetailModal from "./components/DetailModal";
+import CustomCursor from "./components/CustomCursor";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Documents from "./pages/Documents";
@@ -29,10 +29,90 @@ import Login from "./pages/Login";
 import { getNavItems, normalizeDetailPayload } from "./utils";
 
 const SESSION_KEY = "docagent-session";
-const THEME_KEY = "docagent-theme";
+
+const PAGE_META = {
+  dashboard: { title: "Dashboard", subtitle: "Portfolio command surface" },
+  upload: { title: "Upload Document", subtitle: "Ingest, inspect, and route new legal material" },
+  documents: { title: "All Documents", subtitle: "Searchable registry of analyzed legal files" },
+  users: { title: "Users Management", subtitle: "Access control, role oversight, and ownership" },
+  analytics: { title: "Risk Analytics", subtitle: "Exposure trends, category density, and portfolio motion" },
+  activity: { title: "Activity Logs", subtitle: "Operational history across uploads, reviews, and admin actions" },
+  settings: { title: "Settings", subtitle: "Workspace preferences and platform posture" },
+};
+
+function SidebarIcon({ itemKey }) {
+  const common = {
+    className: "exec-nav-icon",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.8",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  if (itemKey === "dashboard") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="3" width="7" height="7" rx="2" />
+        <rect x="14" y="3" width="7" height="5" rx="2" />
+        <rect x="14" y="10" width="7" height="11" rx="2" />
+        <rect x="3" y="14" width="7" height="7" rx="2" />
+      </svg>
+    );
+  }
+  if (itemKey === "documents") {
+    return (
+      <svg {...common}>
+        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+        <path d="M14 3v6h6" />
+      </svg>
+    );
+  }
+  if (itemKey === "upload") {
+    return (
+      <svg {...common}>
+        <path d="M12 16V4" />
+        <path d="m7 9 5-5 5 5" />
+        <path d="M4 20h16" />
+      </svg>
+    );
+  }
+  if (itemKey === "users") {
+    return (
+      <svg {...common}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="3" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      </svg>
+    );
+  }
+  if (itemKey === "analytics") {
+    return (
+      <svg {...common}>
+        <path d="M3 3v18h18" />
+        <path d="m7 14 3-3 3 2 4-5" />
+      </svg>
+    );
+  }
+  if (itemKey === "activity") {
+    return (
+      <svg {...common}>
+        <path d="M22 12h-4l-3 7-4-14-3 7H2" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3" />
+      <path d="M4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3" />
+    </svg>
+  );
+}
 
 function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
   const [session, setSession] = useState(() => {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -43,9 +123,7 @@ function App() {
     }
   });
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState("dashboard");
-
   const [health, setHealth] = useState("Checking...");
   const [stats, setStats] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -107,6 +185,7 @@ function App() {
       setHealth(healthData?.status === "ok" ? "Online" : "Unknown");
       setStats(statsData);
       setDocuments(Array.isArray(docsData) ? docsData : []);
+
       if (session.user?.role === "admin" || session.user?.role === "super_admin") {
         const usersData = await fetchUsers(session.token);
         setUsers(Array.isArray(usersData) ? usersData : []);
@@ -120,11 +199,6 @@ function App() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    document.body.setAttribute("data-theme", theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -151,12 +225,11 @@ function App() {
     loadData();
   }, [session?.token, session?.user?.role]);
 
-  const notificationCount = unreadNotifications;
   const navItems = useMemo(() => getNavItems(session?.user?.role), [session?.user?.role]);
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super_admin";
   const isSuperAdmin = session?.user?.role === "super_admin";
   const allowedPages = useMemo(() => new Set(navItems.map((item) => item.key)), [navItems]);
-
+  const pageMeta = PAGE_META[currentPage] || PAGE_META.dashboard;
   useEffect(() => {
     if (!allowedPages.has(currentPage)) {
       setCurrentPage("dashboard");
@@ -174,6 +247,27 @@ function App() {
       setUnreadNotifications(0);
     }
   }, [currentPage]);
+
+  useEffect(() => {
+    function handleShortcut(event) {
+      const target = event.target;
+      const isTyping =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      if (isTyping) return;
+      if (event.key.toLowerCase() === "u" && allowedPages.has("upload")) {
+        event.preventDefault();
+        setCurrentPage("upload");
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [allowedPages]);
 
   async function handleLogin(payload) {
     const email = String(payload.email || "").trim().toLowerCase();
@@ -396,6 +490,8 @@ function App() {
         <Dashboard
           stats={stats}
           documents={documents}
+          uploadHistory={uploadHistory}
+          loading={loading}
           onNavigate={setCurrentPage}
           onQuickUpload={() => setCurrentPage("upload")}
           canUpload={allowedPages.has("upload")}
@@ -418,23 +514,24 @@ function App() {
     }
 
     if (currentPage === "documents") {
-      return (
-        <Documents
-          documents={documents}
-          loading={loading}
-          onView={handleOpenDetails}
-          onDelete={handleDeleteDocument}
-        />
-      );
+      return <Documents documents={documents} loading={loading} onView={handleOpenDetails} onDelete={handleDeleteDocument} />;
     }
 
     if (currentPage === "users") {
       if (!isAdmin) {
         return (
           <section className="page-stack">
-            <article className="glass-card panel">
-              <h3>Access Restricted</h3>
-              <p className="muted">You do not have permission to view this page.</p>
+            <article className="hero-banner page-enter">
+              <div className="ghost-word">TEAM</div>
+              <div className="hero-banner-inner">
+                <div className="hero-content">
+                  <span className="hero-page-tag">Restricted Surface</span>
+                  <h1 className="hero-headline">Access is limited for this workspace profile.</h1>
+                  <p className="hero-desc">
+                  This page is reserved for administrators with user-management privileges.
+                  </p>
+                </div>
+              </div>
             </article>
           </section>
         );
@@ -458,62 +555,89 @@ function App() {
     }
 
     if (currentPage === "settings") {
-      return <Settings theme={theme} onThemeToggle={() => setTheme((p) => (p === "dark" ? "light" : "dark"))} user={session.user} />;
+      return <Settings user={session.user} />;
     }
 
     return <Activity items={activityLog} />;
   }
 
   if (!session) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <CustomCursor />
+        <Login onLogin={handleLogin} />
+      </>
+    );
   }
 
   return (
-    <div className="app-shell">
-      <div className="shell-fog shell-fog-a" aria-hidden="true" />
-      <div className="shell-fog shell-fog-b" aria-hidden="true" />
-      <div className="shell-grain" aria-hidden="true" />
+    <>
+      <CustomCursor />
+      <div className="app-shell app-shell-light">
+        <aside className="exec-sidebar">
+          <div className="exec-brand">
+            <div className="exec-brand-mark">DA</div>
+            <div>
+              <div className="exec-brand-name">DocAgent</div>
+            </div>
+          </div>
 
-      <Sidebar
-        items={navItems}
-        currentPage={currentPage}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((prev) => !prev)}
-        onNavigate={setCurrentPage}
-        onLogout={handleLogout}
-      />
+          <nav className="exec-sidebar-nav" aria-label="Primary navigation">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`exec-nav-item ${currentPage === item.key ? "is-active" : ""}`}
+                onClick={() => setCurrentPage(item.key)}
+              >
+                <SidebarIcon itemKey={item.key} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
 
-      <div className="content-shell" data-page={currentPage}>
-        <div className="content-ghostmark" aria-hidden="true">
-          <span>DOCU</span>
-          <span>AGENT</span>
-        </div>
+          <div className="exec-sidebar-footer">
+            <div className="exec-sidebar-status">
+              <span className="exec-live-dot" aria-hidden="true" />
+              {health}
+            </div>
+            <button type="button" className="exec-logout-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        </aside>
 
-        <div className="content-frame glass-card">
+        <div className="studio-main-shell">
           <Topbar
-            theme={theme}
-            onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            title={pageMeta.title}
+            subtitle={pageMeta.subtitle}
             backendHealth={health}
             user={session.user}
-            notifications={notificationCount}
-            onNotificationsClick={() => setCurrentPage("activity")}
+            onPrimaryAction={() => setCurrentPage(allowedPages.has("upload") ? "upload" : "documents")}
+            onRefresh={loadData}
           />
 
-          {globalError && <p className="error-banner toast-in">{globalError}</p>}
-          <div key={currentPage} className="page-transition">
-            {renderPage()}
-          </div>
+          <main className="main-area">
+            <div className="main-scroll">
+              <div className="page-canvas">
+                {globalError && <p className="error-banner">{globalError}</p>}
+                <div key={currentPage} className="page-transition">
+                  {renderPage()}
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
-      </div>
 
-      <DetailModal
-        open={detailOpen}
-        loading={detailLoading}
-        error={detailError}
-        document={selectedDocument}
-        onClose={() => setDetailOpen(false)}
-      />
-    </div>
+        <DetailModal
+          open={detailOpen}
+          loading={detailLoading}
+          error={detailError}
+          document={selectedDocument}
+          onClose={() => setDetailOpen(false)}
+        />
+      </div>
+    </>
   );
 }
 

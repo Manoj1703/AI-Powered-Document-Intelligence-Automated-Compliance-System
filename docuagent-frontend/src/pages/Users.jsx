@@ -1,5 +1,14 @@
 import React from "react";
-import InfoHint from "../components/InfoHint";
+
+function userInitial(name) {
+  return String(name || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+function formatRole(role) {
+  return String(role || "user")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
 
 function Users({
   users,
@@ -12,95 +21,124 @@ function Users({
   onTransferSuperAdmin,
 }) {
   const currentUserId = currentUser?.id;
+  const superAdmins = users.filter((user) => user.role === "super_admin").length;
+  const admins = users.filter((user) => user.role === "admin").length;
+  const members = users.filter((user) => user.role === "user").length;
 
   function renderActions(user) {
-    if (!canManageRoles) return <span className="muted">View only</span>;
-    if (user.role === "super_admin") return <span className="muted">Protected</span>;
+    if (!canManageRoles) return <span className="users-view-only">View only</span>;
+    if (user.role === "super_admin") return <span className="role-pill protected">Protected</span>;
 
     const isSelf = user.id === currentUserId;
-    const actions = [];
-    if (user.role === "user") {
-      actions.push(
-        <button key="promote" type="button" className="ghost-button" onClick={() => onPromote(user)}>
-          Promote
-        </button>,
-      );
-    } else if (user.role === "admin") {
-      actions.push(
-        <button key="demote" type="button" className="ghost-button" onClick={() => onDemote(user)}>
-          Demote
-        </button>,
-      );
-      actions.push(
-        <button key="transfer" type="button" className="ghost-button" onClick={() => onTransferSuperAdmin(user)}>
-          Make Super Admin
-        </button>,
-      );
-    }
-
-    if (!isSelf) {
-      actions.push(
-        <button key="delete" type="button" className="danger-button" onClick={() => onDeleteUser(user)}>
-          Delete
-        </button>,
-      );
-    }
-
-    if (actions.length === 0) return <span className="muted">No actions</span>;
-    return <div className="row-actions users-actions">{actions}</div>;
+    return (
+      <div className="users-row-actions">
+        {user.role === "user" && (
+          <button type="button" className="exec-primary-btn small" onClick={() => onPromote(user)}>
+            Promote
+          </button>
+        )}
+        {user.role === "admin" && (
+          <>
+            <button type="button" className="exec-secondary-btn" onClick={() => onDemote(user)}>
+              Demote
+            </button>
+            <button type="button" className="exec-secondary-btn" onClick={() => onTransferSuperAdmin(user)}>
+              Make Super Admin
+            </button>
+          </>
+        )}
+        {!isSelf && (
+          <button type="button" className="exec-secondary-btn" onClick={() => onDeleteUser(user)}>
+            Delete
+          </button>
+        )}
+      </div>
+    );
   }
 
   return (
-    <section className="page-stack">
-      <article className="glass-card panel">
-        <h3 className="title-with-help">
-          Users Management
-          <InfoHint text="View platform users. Only Super Admin can promote, demote, delete, or transfer ownership." />
-        </h3>
-        <div className="table-wrap glass-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan="4" className="table-empty">
-                    Loading users...
-                  </td>
-                </tr>
-              )}
-              {!loading && users.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="table-empty">
-                    No users found.
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.username || "-"}</td>
-                    <td>{user.email}</td>
-                    <td>
-                      <span className={`role-badge role-${user.role || "user"}`}>
-                        {String(user.role || "user")
-                          .replace("_", " ")
-                          .replace(/\b\w/g, (ch) => ch.toUpperCase())}
-                      </span>
-                    </td>
-                    <td>{renderActions(user)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+    <section className="page-stack users-page">
+      <article className="users-hero page-enter">
+        <div className="users-hero-shell">
+          <div className="users-hero-copy">
+            <h1 className="users-title">Govern workspace access with clean ownership boundaries.</h1>
+          </div>
+
+          <div className="users-stats-grid">
+            <article className="users-stat-card is-strong">
+              <span className="users-stat-label">Super admins</span>
+              <strong className="users-stat-value">{superAdmins}</strong>
+            </article>
+            <article className="users-stat-card">
+              <span className="users-stat-label">Admins</span>
+              <strong className="users-stat-value">{admins}</strong>
+            </article>
+            <article className="users-stat-card">
+              <span className="users-stat-label">Members</span>
+              <strong className="users-stat-value">{members}</strong>
+            </article>
+            <article className="users-stat-card">
+              <span className="users-stat-label">Control state</span>
+              <strong className="users-stat-value users-stat-value--text">{canManageRoles ? "Active" : "Read only"}</strong>
+            </article>
+          </div>
         </div>
       </article>
+
+      <section className="page-section page-enter">
+        <article className="users-directory">
+          <div className="users-directory-head">
+            <div>
+              <div className="section-label">Workspace Operators</div>
+              <div className="section-title">Team directory</div>
+            </div>
+            <div className="users-directory-meta">
+              <span>{users.length} total users</span>
+              <span>{canManageRoles ? "Super admin controls active" : "Read-only access"}</span>
+            </div>
+          </div>
+
+          {loading && <div className="empty-state">Loading users...</div>}
+          {!loading && users.length === 0 && <div className="empty-state">No users found.</div>}
+
+          {!loading && users.length > 0 && (
+            <div className="users-list">
+              {users.map((user) => (
+                <article
+                  className={`user-row users-card tone-${String(user.role || "user").replace("_", "-")} ${
+                    user.id === currentUserId ? "is-current" : ""
+                  }`}
+                  key={user.id}
+                >
+                  <div className="users-card-orb" aria-hidden="true" />
+
+                  <div className="users-identity-block">
+                    <div className="user-avatar-sm users-avatar" aria-hidden="true">
+                      {userInitial(user.username || user.email)}
+                    </div>
+
+                    <div className="user-info users-info">
+                      <div className="users-name-line">
+                        <div className="user-name">{user.username || "Unknown user"}</div>
+                        {user.id === currentUserId && <span className="users-self-badge">You</span>}
+                      </div>
+                      <div className="user-email">{user.email}</div>
+                    </div>
+                  </div>
+
+                  <div className="users-role-wrap users-access-rail">
+                    <span className={`role-pill ${(user.role || "user").replace("_", "-")}`}>{formatRole(user.role)}</span>
+                  </div>
+
+                  <div className="users-actions-wrap">
+                    <div className="users-action-dock">{renderActions(user)}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
     </section>
   );
 }

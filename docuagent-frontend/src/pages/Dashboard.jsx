@@ -1,6 +1,4 @@
-import React, { useMemo, useState } from "react";
-import RiskCard from "../components/RiskCard";
-import InfoHint from "../components/InfoHint";
+import React, { useMemo } from "react";
 import { formatDate, normalizeRisk, prettyRisk } from "../utils";
 
 function toDate(value) {
@@ -14,474 +12,330 @@ function startOfToday() {
   return start.getTime();
 }
 
-function inRange(date, range, customStart, customEnd) {
-  if (!date) return false;
-  const stamp = date.getTime();
-  const now = Date.now();
-
-  if (range === "today") return stamp >= startOfToday();
-  if (range === "week") return stamp >= now - 7 * 24 * 60 * 60 * 1000;
-  if (range === "month") return stamp >= now - 30 * 24 * 60 * 60 * 1000;
-  if (range === "year") return stamp >= now - 365 * 24 * 60 * 60 * 1000;
-  if (range === "custom") {
-    if (!customStart || !customEnd) return true;
-    const start = new Date(`${customStart}T00:00:00`).getTime();
-    const end = new Date(`${customEnd}T23:59:59`).getTime();
-    return stamp >= start && stamp <= end;
-  }
-  return true;
+function MetricSpark() {
+  return (
+    <div className="exec-metric-spark" aria-hidden="true">
+      <span style={{ height: "10px" }} />
+      <span style={{ height: "14px" }} />
+      <span style={{ height: "12px" }} />
+      <span style={{ height: "18px" }} />
+      <span style={{ height: "22px" }} />
+    </div>
+  );
 }
 
-function periodLengthMs(range, customStart, customEnd) {
-  if (range === "today") return 24 * 60 * 60 * 1000;
-  if (range === "week") return 7 * 24 * 60 * 60 * 1000;
-  if (range === "month") return 30 * 24 * 60 * 60 * 1000;
-  if (range === "year") return 365 * 24 * 60 * 60 * 1000;
-  if (range === "custom" && customStart && customEnd) {
-    const start = new Date(`${customStart}T00:00:00`).getTime();
-    const end = new Date(`${customEnd}T23:59:59`).getTime();
-    return Math.max(24 * 60 * 60 * 1000, end - start + 1);
-  }
-  return 7 * 24 * 60 * 60 * 1000;
-}
+function Dashboard({ documents, uploadHistory = [], loading, onNavigate, onQuickUpload, canUpload, isAdmin, onOpenDocument }) {
+  const recentDocuments = useMemo(
+    () =>
+      [...documents]
+        .sort((a, b) => new Date(b.uploaded_at || b.created_at || 0).getTime() - new Date(a.uploaded_at || a.created_at || 0).getTime())
+        .slice(0, 5),
+    [documents],
+  );
 
-function fmtDiff(value) {
-  if (value > 0) return `up +${value}`;
-  if (value < 0) return `down ${value}`;
-  return "stable";
-}
+  const documentsProcessed = documents.length;
+  const documentsToday = documents.filter((doc) => {
+    const date = toDate(doc.uploaded_at || doc.created_at);
+    return date ? date.getTime() >= startOfToday() : false;
+  }).length;
 
-function Dashboard({ stats, documents, onNavigate, onQuickUpload, canUpload, isAdmin, onOpenDocument }) {
-  const [range, setRange] = useState("week");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
-  const [hoveredSlice, setHoveredSlice] = useState("");
-
-  const scopedDocs = useMemo(() => {
-    return documents.filter((doc) => inRange(toDate(doc.uploaded_at || doc.created_at), range, customStart, customEnd));
-  }, [documents, range, customStart, customEnd]);
-
-  const high = scopedDocs.filter((doc) => normalizeRisk(doc.overall_risk_level) === "high").length;
-  const medium = scopedDocs.filter((doc) => normalizeRisk(doc.overall_risk_level) === "medium").length;
-  const low = scopedDocs.filter((doc) => normalizeRisk(doc.overall_risk_level) === "low").length;
+  const high = documents.filter((doc) => normalizeRisk(doc.overall_risk_level) === "high").length;
+  const medium = documents.filter((doc) => normalizeRisk(doc.overall_risk_level) === "medium").length;
+  const low = documents.filter((doc) => normalizeRisk(doc.overall_risk_level) === "low").length;
   const reviewed = high + medium + low;
-  const total = reviewed || 1;
-  const unresolved = Math.max(0, scopedDocs.length - reviewed);
-  const highShare = Math.round((high / total) * 100);
+  const queueStatus = Math.max(0, documents.length - reviewed);
+  const riskScore = reviewed ? Math.round(((low * 1 + medium * 0.62 + high * 0.28) / reviewed) * 100) : 0;
 
-  const prevPeriodDocs = useMemo(() => {
-    const now = Date.now();
-    const len = periodLengthMs(range, customStart, customEnd);
-    const start = now - len;
-    const prevStart = start - len;
-    return documents.filter((doc) => {
-      const date = toDate(doc.uploaded_at || doc.created_at);
-      if (!date) return false;
-      const stamp = date.getTime();
-      return stamp >= prevStart && stamp < start;
-    });
-  }, [documents, range, customStart, customEnd]);
+  const uploadedCount = documents.length;
+  const processingCount = queueStatus;
+  const reviewedCount = reviewed;
+  const pipelineTotal = Math.max(uploadedCount + processingCount + reviewedCount, 1);
 
-  const diffFor = (risk) => {
-    const current = scopedDocs.filter((doc) => normalizeRisk(doc.overall_risk_level) === risk).length;
-    const previous = prevPeriodDocs.filter((doc) => normalizeRisk(doc.overall_risk_level) === risk).length;
-    return current - previous;
-  };
-  const totalDiff = scopedDocs.length - prevPeriodDocs.length;
-
-  const slices = [
-    { label: "High", value: high, color: "#f87171" },
-    { label: "Medium", value: medium, color: "#fbbf24" },
-    { label: "Low", value: low, color: "#34d399" },
+  const recentUploads = [...uploadHistory].slice(-4).reverse();
+  const riskTone = riskScore >= 70 ? "Low-risk posture" : riskScore >= 45 ? "Moderate posture" : "Elevated review posture";
+  const attentionCount = high + queueStatus;
+  const riskBreakdown = [
+    { label: "High risk", value: high, tone: "high", percent: reviewed ? Math.round((high / reviewed) * 100) : 0 },
+    { label: "Medium risk", value: medium, tone: "medium", percent: reviewed ? Math.round((medium / reviewed) * 100) : 0 },
+    { label: "Low risk", value: low, tone: "low", percent: reviewed ? Math.round((low / reviewed) * 100) : 0 },
   ];
-  const withPct = slices.map((slice) => ({
-    ...slice,
-    pct: Math.round((slice.value / total) * 100),
-  }));
-
-  const hoveredData = withPct.find((item) => item.label === hoveredSlice) || null;
-  const dominant = [...withPct].sort((a, b) => b.value - a.value)[0] || withPct[0];
-
-  const riskScore = reviewed
-    ? Math.round(((low * 1 + medium * 0.62 + high * 0.28) / reviewed) * 100)
-    : 0;
-
-  const recent = [...documents].slice(0, 5);
 
   return (
-    <section className="page-stack dashboard-page">
-      <article className="glass-card panel dashboard-hero">
-        <div className="dashboard-hero-copy">
-          <p className="micro-label">DocuAgent Intelligence Suite</p>
-          <h2>Sharper compliance visibility with a calmer, premium workspace.</h2>
-          <p className="dashboard-hero-text">
-            Monitor legal exposure, surface high-risk contracts faster, and move from document upload to executive review
-            without leaving the main canvas.
-          </p>
-          <div className="dashboard-hero-actions">
-            {canUpload && (
-              <button className="primary-button split-cta" type="button" onClick={onQuickUpload}>
-                <span>Quick Upload</span>
-                <span className="cta-orb" aria-hidden="true">
-                  ↗
-                </span>
-              </button>
-            )}
-            <button className="ghost-button hero-pill-button" type="button" onClick={() => onNavigate("documents")}>
-              Open Documents
-            </button>
-          </div>
-          <div className="dashboard-hero-stats">
-            <div className="hero-stat-chip">
-              <span className="micro-label">Risk Score</span>
-              <strong>{riskScore}/100</strong>
-            </div>
-            <div className="hero-stat-chip">
-              <span className="micro-label">Reviewed</span>
-              <strong>{reviewed}</strong>
-            </div>
-            <div className="hero-stat-chip">
-              <span className="micro-label">Priority Queue</span>
-              <strong>{high} high risk</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="dashboard-hero-visual" aria-hidden="true">
-          <div className="hero-grid-lines" />
-          <div className="hero-watermark">DOCUAGENT</div>
-          <div className="hero-orbit">
-            <div className="hero-orbit-ring ring-outer" />
-            <div className="hero-orbit-ring ring-mid" />
-            <div className="hero-orbit-ring ring-inner" />
-            <div className="hero-orbit-center">
-              <span className="micro-label">Live Risk Mix</span>
-              <strong>{dominant.label}</strong>
-              <p>{dominant.pct}% dominant band</p>
-            </div>
-            {withPct.map((slice, index) => (
-              <div
-                key={`hero-node-${slice.label}`}
-                className={`hero-orbit-node node-${index + 1}`}
-                style={{ "--node-color": slice.color }}
-              >
-                <span>{slice.label}</span>
-                <strong>{slice.value}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="hero-metric-rail">
-            {withPct.map((slice) => (
-              <div key={`hero-bar-${slice.label}`} className="hero-metric-row">
-                <div className="hero-metric-head">
-                  <span>{slice.label}</span>
-                  <strong>{slice.pct}%</strong>
-                </div>
-                <div className="hero-metric-track">
-                  <div
-                    className="hero-metric-fill"
-                    style={{ width: `${slice.pct}%`, backgroundColor: slice.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="hero-data-card">
-            <span className="micro-label">Active Focus</span>
-            <strong>{dominant.label} risk portfolio</strong>
-            <p>{dominant.pct}% of the current review window sits in this band.</p>
-          </div>
-          <div className="hero-badge-card">
-            <div className="hero-badge-top" />
-            <div className="hero-badge-body">
-              <span className="micro-label">Audit Preview</span>
-              <strong>{scopedDocs.length} live documents</strong>
-              <p>{documents.filter((doc) => inRange(toDate(doc.uploaded_at || doc.created_at), "today")).length} added today</p>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <div className="dashboard-section-intro">
-        <div>
-          <p className="micro-label">Risk Snapshot</p>
-          <h3>Portfolio status at a glance</h3>
-        </div>
-        <p>Compact KPIs for review load, critical exposure, and trend direction.</p>
-      </div>
-
-      <div className="stats-grid">
-        <RiskCard label="Total Documents" value={scopedDocs.length} icon="DOC" trend={`${fmtDiff(totalDiff)} vs previous`} />
-        <RiskCard label="High Risk" value={high} risk="high" icon="H" trend={`${fmtDiff(diffFor("high"))} this ${range}`} />
-        <RiskCard label="Medium Risk" value={medium} risk="medium" icon="M" trend={`${fmtDiff(diffFor("medium"))} this ${range}`} />
-        <RiskCard label="Low Risk" value={low} risk="low" icon="L" trend={`${fmtDiff(diffFor("low"))} this ${range}`} />
-      </div>
-
-      <div className="dashboard-section-intro">
-        <div>
-          <p className="micro-label">Deep View</p>
-          <h3>Analytics and operational guidance</h3>
-        </div>
-        <p>Distribution, insight, and action areas tuned for daily review workflows.</p>
-      </div>
-
-      <div className="dashboard-analytics-grid">
-        <article className="glass-card panel">
-          <div className="panel-head">
-            <h3 className="title-with-help">
-              Risk Distribution
-              <InfoHint text="Shows how uploaded documents are split by High, Medium, and Low risk." />
-            </h3>
-            <div className="range-filters" role="group" aria-label="Dashboard range">
-              <button type="button" className={`ghost-button ${range === "today" ? "active-filter" : ""}`} onClick={() => setRange("today")}>
-                Today
-              </button>
-              <button type="button" className={`ghost-button ${range === "week" ? "active-filter" : ""}`} onClick={() => setRange("week")}>
-                Week
-              </button>
-              <button type="button" className={`ghost-button ${range === "month" ? "active-filter" : ""}`} onClick={() => setRange("month")}>
-                Month
-              </button>
-              <button type="button" className={`ghost-button ${range === "year" ? "active-filter" : ""}`} onClick={() => setRange("year")}>
-                Year
-              </button>
-              <button type="button" className={`ghost-button ${range === "custom" ? "active-filter" : ""}`} onClick={() => setRange("custom")}>
-                Custom
-              </button>
-            </div>
-          </div>
-
-          {range === "custom" && (
-            <div className="custom-range-row">
-              <label>
-                Start
-                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} />
-              </label>
-              <label>
-                End
-                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
-              </label>
-            </div>
-          )}
-
-          <div className="risk-layout">
-            <div>
-              <div className="chart-shell">
-                <svg viewBox="0 0 40 40" className="pie-chart pie-draw" aria-label="Risk distribution">
-                  {(() => {
-                    let offset = 0;
-                    return withPct.map((slice) => {
-                      const segment = (slice.value / total) * 100;
-                      const active = !hoveredSlice || hoveredSlice === slice.label;
-                      const node = (
-                        <circle
-                          key={slice.label}
-                          r="15.5"
-                          cx="20"
-                          cy="20"
-                          fill="transparent"
-                          stroke={slice.color}
-                          strokeWidth="5.8"
-                          strokeDasharray={`${segment} ${100 - segment}`}
-                          strokeDashoffset={-offset}
-                          className={`pie-segment ${active ? "active" : "muted"}`}
-                          onMouseEnter={() => setHoveredSlice(slice.label)}
-                          onMouseLeave={() => setHoveredSlice("")}
-                        />
-                      );
-                      offset += segment;
-                      return node;
-                    });
-                  })()}
-                </svg>
-                <div className="donut-center">
-                  <div className="donut-center-inner">
-                    <strong>{scopedDocs.length}</strong>
-                    <span>Total Docs</span>
-                  </div>
-                </div>
-                {hoveredData && (
-                  <div className="chart-tooltip">
-                    <strong>{hoveredData.label} Risk</strong>
-                    <span>{hoveredData.value} documents</span>
-                    <span>{hoveredData.pct}%</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="legend-grid">
-                {withPct.map((slice) => (
-                  <div
-                    key={slice.label}
-                    className={`legend-item ${hoveredSlice === slice.label ? "active-legend" : ""}`}
-                    onMouseEnter={() => setHoveredSlice(slice.label)}
-                    onMouseLeave={() => setHoveredSlice("")}
-                  >
-                    <span style={{ backgroundColor: slice.color }} />
-                    <strong>{slice.label} Risk</strong>
-                    <small>
-                      {slice.value} ({slice.pct}%)
-                    </small>
-                  </div>
-                ))}
-              </div>
-
-              <div className="risk-breakdown">
-                <h4>Risk Breakdown</h4>
-                {withPct.map((slice) => (
-                  <div key={`${slice.label}-bar`} className="risk-break-row">
-                    <div className="risk-break-head">
-                      <span>{slice.label} Risk</span>
-                      <small>
-                        {slice.value} docs ({slice.pct}%)
-                      </small>
-                    </div>
-                    <div className="risk-break-track">
-                      <div className="risk-break-fill" style={{ width: `${slice.pct}%`, backgroundColor: slice.color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article className="glass-card panel">
-          <div className="panel-head">
-            <h3 className="title-with-help">
-              AI Insight
-              <InfoHint text="Quick summary generated from current results to help prioritize review work." />
-            </h3>
-          </div>
-          <div className="insight-panel">
-            <p>
-              Most documents are <strong>{dominant.label}</strong> risk ({dominant.pct}%).
-              {" "}
-              {high} high-risk document{high === 1 ? "" : "s"} need priority review.
+    <section className="page-stack exec-dashboard">
+      <div className="exec-dashboard-surface">
+        <section className="exec-command-grid page-enter">
+          <article className="exec-spotlight-card">
+            <div className="exec-eyebrow exec-eyebrow--inverse">Operations Deck</div>
+            <h1 className="exec-spotlight-title">Review faster. Escalate smarter.</h1>
+            <p className="exec-spotlight-text">
+              A sharper command surface for live uploads, review throughput, and risk escalation across the document pipeline.
             </p>
-            <div className="insight-stats">
-              <div className="insight-stat">
-                <span>Total Analyzed</span>
-                <strong>{reviewed}</strong>
+
+            <div className="exec-spotlight-actions">
+              <button type="button" className="exec-primary-btn" onClick={onQuickUpload} disabled={!canUpload}>
+                {canUpload ? "Upload New File" : "Upload Disabled"}
+              </button>
+              <button type="button" className="exec-secondary-btn is-contrast" onClick={() => onNavigate("documents")}>
+                Open Review Queue
+              </button>
+              {isAdmin && (
+                <button type="button" className="exec-secondary-btn is-contrast" onClick={() => onNavigate("users")}>
+                  Manage Workspace
+                </button>
+              )}
+            </div>
+
+            <div className="exec-spotlight-band">
+              <div className="exec-band-metric">
+                <span>Processed</span>
+                <strong>{documentsProcessed}</strong>
               </div>
-              <div className="insight-stat">
-                <span>Risk Score</span>
-                <strong>{riskScore} / 100</strong>
+              <div className="exec-band-metric">
+                <span>Needs attention</span>
+                <strong>{attentionCount}</strong>
               </div>
-              <div className="insight-stat">
-                <span>Documents Analyzed Today</span>
-                <strong>{documents.filter((doc) => inRange(toDate(doc.uploaded_at || doc.created_at), "today")).length}</strong>
+              <div className="exec-band-metric">
+                <span>Risk posture</span>
+                <strong>{riskTone}</strong>
               </div>
             </div>
-            <div className="trend-lines">
-              <p>
-                <strong>High Risk</strong> {fmtDiff(diffFor("high"))}
-              </p>
-              <p>
-                <strong>Medium Risk</strong> {fmtDiff(diffFor("medium"))}
-              </p>
-              <p>
-                <strong>Low Risk</strong> {fmtDiff(diffFor("low"))}
-              </p>
-            </div>
-            <div className="insight-mini-grid">
-              <div className="insight-mini">
-                <span>Average Risk Score</span>
-                <strong>{riskScore} / 100</strong>
+          </article>
+
+          <div className="exec-summary-stack">
+            <article className="exec-summary-card">
+              <div className="exec-eyebrow">Workspace Pulse</div>
+              <h2 className="exec-summary-title">Current snapshot</h2>
+              <div className="exec-summary-grid">
+                <div className="exec-summary-item">
+                  <span>Documents today</span>
+                  <strong>{documentsToday}</strong>
+                </div>
+                <div className="exec-summary-item">
+                  <span>Risk score</span>
+                  <strong>{riskScore}</strong>
+                </div>
+                <div className="exec-summary-item">
+                  <span>In queue</span>
+                  <strong>{queueStatus}</strong>
+                </div>
+                <div className="exec-summary-item">
+                  <span>Reviewed</span>
+                  <strong>{reviewedCount}</strong>
+                </div>
               </div>
-              <div className="insight-mini">
-                <span>High Risk Docs</span>
-                <strong>{high}</strong>
+            </article>
+
+            <article className="exec-summary-card">
+              <div className="exec-eyebrow">Risk Posture</div>
+              <h2 className="exec-summary-title">{riskTone}</h2>
+              <div className="exec-risk-meter" aria-hidden="true">
+                {riskBreakdown.map((item) => (
+                  <span
+                    key={item.label}
+                    className={`exec-risk-fill ${item.tone}`}
+                    style={{ width: `${reviewed ? Math.max(item.percent, item.value ? 10 : 0) : 0}%` }}
+                  />
+                ))}
               </div>
-              <div className="insight-mini">
-                <span>Medium Risk Docs</span>
-                <strong>{medium}</strong>
+              <div className="exec-risk-legend">
+                {riskBreakdown.map((item) => (
+                  <div key={item.label} className="exec-risk-row">
+                    <span className={`exec-risk-dot ${item.tone}`} aria-hidden="true" />
+                    <div>
+                      <strong>{item.label}</strong>
+                      <small>{item.percent}% of reviewed files</small>
+                    </div>
+                    <span>{item.value}</span>
+                  </div>
+                ))}
               </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="page-section page-enter">
+          <div className="exec-section-header">
+            <div>
+              <div className="exec-eyebrow">Live Metrics</div>
+              <h2 className="exec-section-title">Priority signals</h2>
             </div>
           </div>
-        </article>
 
-      </div>
-
-      <article className="glass-card panel">
-        <div className="panel-head">
-          <h3 className="title-with-help">
-            {isAdmin ? "Admin Control Center" : "Quick Actions"}
-            <InfoHint text="Shortcuts for navigation and role-based tasks you can perform right now." />
-          </h3>
-        </div>
-        <div className="dashboard-actions-grid">
-          {canUpload && (
-            <button className="primary-button" type="button" onClick={onQuickUpload}>
-              Quick Upload
-            </button>
-          )}
-          <button className="ghost-button" type="button" onClick={() => onNavigate("documents")}>
-            Open Documents
-          </button>
-          <button className="ghost-button" type="button" onClick={() => onNavigate("analytics")}>
-            View Analytics
-          </button>
-          {isAdmin && (
-            <button className="ghost-button" type="button" onClick={() => onNavigate("users")}>
-              Manage Users
-            </button>
-          )}
-        </div>
-        {isAdmin && (
-          <div className="admin-snapshot-grid">
-            <div className="admin-kpi">
-              <p className="card-label">High Risk Share</p>
-              <strong>{highShare}%</strong>
-            </div>
-            <div className="admin-kpi">
-              <p className="card-label">Pending Classification</p>
-              <strong>{unresolved}</strong>
-            </div>
-            <div className="admin-kpi">
-              <p className="card-label">Reviewed</p>
-              <strong>{reviewed}</strong>
-            </div>
-          </div>
-        )}
-      </article>
-
-      <article className="glass-card panel">
-        <div className="panel-head">
-          <h3 className="title-with-help">
-            Recent Documents
-            <InfoHint text="Latest uploaded files with direct actions to view details or open analytics." />
-          </h3>
-          <button type="button" className="ghost-button" onClick={() => onNavigate("documents")}>
-            View All
-          </button>
-        </div>
-        <div className="recent-list">
-          {recent.length === 0 && <p className="muted">No documents yet.</p>}
-          {recent.map((doc) => (
-            <div key={doc.id} className="recent-row">
-              <div className="recent-meta">
-                <strong>DOC {doc.filename || "Unknown"}</strong>
-                <p>{doc.title || "Untitled"}</p>
+          <div className="exec-metric-row">
+            <article className="exec-metric-card tone-indigo">
+              <div className="exec-metric-top">
+                <div>
+                  <span className="exec-metric-label">Documents processed</span>
+                  <strong className="exec-metric-value">{documentsProcessed}</strong>
+                </div>
+                <MetricSpark />
               </div>
-              <div className="recent-actions">
-                <span className={`risk-pill risk-${normalizeRisk(doc.overall_risk_level)}`}>
-                  {prettyRisk(doc.overall_risk_level)}
+              <div className="exec-metric-bottom">
+                <span className="exec-metric-chip tone-indigo">
+                  <span>now</span>
+                  <span>+{documentsToday} today</span>
                 </span>
-                <small>{formatDate(doc.uploaded_at || doc.created_at)}</small>
-                <div className="row-actions">
-                  <button type="button" className="ghost-button" onClick={() => onOpenDocument?.(doc.id)}>
-                    View
-                  </button>
-                  <button type="button" className="ghost-button" onClick={() => onNavigate("analytics")}>
-                    Analyze
+                <span className="exec-metric-note">active throughput</span>
+              </div>
+            </article>
+
+            <article className="exec-metric-card tone-amber">
+              <div className="exec-metric-top">
+                <div>
+                  <span className="exec-metric-label">Documents today</span>
+                  <strong className="exec-metric-value">{documentsToday}</strong>
+                </div>
+                <MetricSpark />
+              </div>
+              <div className="exec-metric-bottom">
+                <span className="exec-metric-chip tone-amber">
+                  <span>fresh</span>
+                  <span>new intake</span>
+                </span>
+                <span className="exec-metric-note">files entered today</span>
+              </div>
+            </article>
+
+            <article className="exec-metric-card tone-danger">
+              <div className="exec-metric-top">
+                <div>
+                  <span className="exec-metric-label">Attention items</span>
+                  <strong className="exec-metric-value">{attentionCount}</strong>
+                </div>
+                <MetricSpark />
+              </div>
+              <div className="exec-metric-bottom">
+                <span className="exec-metric-chip tone-danger">
+                  <span>alert</span>
+                  <span>{high} high risk</span>
+                </span>
+                <span className="exec-metric-note">queue plus escalation</span>
+              </div>
+            </article>
+
+            <article className="exec-metric-card tone-success">
+              <div className="exec-metric-top">
+                <div>
+                  <span className="exec-metric-label">Review cleared</span>
+                  <strong className="exec-metric-value">{reviewedCount}</strong>
+                </div>
+                <MetricSpark />
+              </div>
+              <div className="exec-metric-bottom">
+                <span className="exec-metric-chip tone-success">
+                  <span>ready</span>
+                  <span>{queueStatus} waiting</span>
+                </span>
+                <span className="exec-metric-note">completed classifications</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="exec-operations-grid exec-operations-grid--single page-enter">
+          <article className="exec-panel-card">
+            <div className="exec-section-header">
+              <div>
+                <div className="exec-eyebrow">Pipeline</div>
+                <h2 className="exec-section-title">Document flow</h2>
+              </div>
+              <div className="exec-section-hint">Uploaded, queued, and reviewed in one operational line.</div>
+            </div>
+
+            <div className="exec-pipeline-track" aria-hidden="true">
+              <div className="exec-pipeline-segment uploaded" style={{ width: `${Math.max((uploadedCount / pipelineTotal) * 100, 18)}%` }} />
+              <div className="exec-pipeline-segment processing" style={{ width: `${Math.max((processingCount / pipelineTotal) * 100, processingCount ? 14 : 0)}%` }} />
+              <div className="exec-pipeline-segment reviewed" style={{ width: `${Math.max((reviewedCount / pipelineTotal) * 100, reviewedCount ? 18 : 0)}%` }} />
+            </div>
+
+            <div className="exec-pipeline-stats">
+              <div className="exec-pipeline-item">
+                <span>Uploaded</span>
+                <strong>{uploadedCount}</strong>
+              </div>
+              <div className="exec-pipeline-item">
+                <span>Processing</span>
+                <strong>{processingCount}</strong>
+              </div>
+              <div className="exec-pipeline-item">
+                <span>Reviewed</span>
+                <strong>{reviewedCount}</strong>
+              </div>
+            </div>
+
+            <div className="exec-process-notes">
+              <div className="exec-note-card">
+                <span>Fast lane</span>
+                <strong>{low} low-risk files moving cleanly</strong>
+              </div>
+              <div className="exec-note-card">
+                <span>Watch list</span>
+                <strong>{medium} medium-risk files need validation</strong>
+              </div>
+              <div className="exec-note-card">
+                <span>Escalation</span>
+                <strong>{high} high-risk files should be reviewed first</strong>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section className="exec-library-grid page-enter">
+          <div className="doc-table exec-doc-table">
+            <div className="doc-table-head">
+              <div>
+                <div className="exec-eyebrow">Review Queue</div>
+                <div className="exec-section-title">Latest documents</div>
+              </div>
+              <button type="button" className="exec-secondary-btn" onClick={() => onNavigate("documents")}>
+                Open All Documents
+              </button>
+            </div>
+
+            {loading && (
+              <>
+                <div className="exec-skeleton-row" />
+                <div className="exec-skeleton-row" />
+                <div className="exec-skeleton-row" />
+              </>
+            )}
+
+            {!loading && recentDocuments.length === 0 && <div className="empty-state">No documents yet.</div>}
+
+            {recentDocuments.map((doc) => (
+              <div key={doc.id} className="doc-row exec-doc-row">
+                <div className="doc-row-info">
+                  <div className="doc-row-name">{doc.filename || "Unknown"}</div>
+                  <div className="doc-row-sub">
+                    {doc.title || "Untitled"} / {doc.document_type || "Unknown"}
+                  </div>
+                </div>
+                <div className="doc-row-meta">
+                  <span className={`risk-badge ${normalizeRisk(doc.overall_risk_level)}`}>{prettyRisk(doc.overall_risk_level)}</span>
+                  <span className="doc-timestamp">{formatDate(doc.uploaded_at || doc.created_at)}</span>
+                  <button type="button" className="exec-primary-btn small" onClick={() => onOpenDocument?.(doc.id)}>
+                    Inspect
                   </button>
                 </div>
               </div>
+            ))}
+          </div>
+
+          <article className="exec-panel-card">
+            <div className="exec-eyebrow">Session Uploads</div>
+            <h2 className="exec-section-title">Recent intake</h2>
+            <div className="exec-upload-list">
+              {recentUploads.length === 0 && <div className="empty-state">No uploads in this session yet.</div>}
+              {recentUploads.map((item, index) => (
+                <div key={`${item.filename}-${index}`} className="exec-upload-item">
+                  <strong>{item.filename}</strong>
+                  <small>{item.time}</small>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </article>
+          </article>
+        </section>
+      </div>
     </section>
   );
 }

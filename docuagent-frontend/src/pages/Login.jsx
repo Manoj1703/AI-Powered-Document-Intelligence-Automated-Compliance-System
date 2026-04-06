@@ -504,7 +504,7 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
   }
 
   async function handleSubmit(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -570,7 +570,16 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
       <DotGrid />
 
       <div className={`green-center-wrapper ${mode === "register" ? "is-register" : ""}`}>
-        <form className={`green-card ${mode === "register" ? "green-card-register" : ""}`} ref={cardRef} onSubmit={handleSubmit} autoComplete="off">
+        <div
+          className={`green-card ${mode === "register" ? "green-card-register" : ""}`}
+          ref={cardRef}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              handleSubmit();
+            }
+          }}
+        >
           <input type="text" name="decoy_username" autoComplete="username" tabIndex={-1} aria-hidden="true" className="green-decoy" />
           <input
             type="password"
@@ -677,9 +686,9 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
                   </div>
                 )}
                 {!turnstileSiteKey && (
-                  <span className="green-inline-msg bad" role="alert" aria-live="polite">
-                    <IconAlert size={12} />
-                    Captcha is not configured. Set VITE_TURNSTILE_SITE_KEY in frontend env.
+                  <span className="green-inline-msg info" role="status" aria-live="polite">
+                    <IconInfo size={12} />
+                    Captcha is disabled for local development. Set VITE_TURNSTILE_SITE_KEY to enable it.
                   </span>
                 )}
               </>
@@ -865,7 +874,7 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
             </button>
           </div>
 
-          <button type="submit" className={`green-cta ${submitting ? "is-loading" : ""}`} disabled={submitting}>
+          <button type="button" className={`green-cta ${submitting ? "is-loading" : ""}`} disabled={submitting} onClick={handleSubmit}>
             <span>{submitLabel}</span>
             {submitting ? <span className="green-spinner" aria-hidden="true" /> : mode === "register" ? <IconUserPlus size={16} /> : <IconLogin size={16} />}
           </button>
@@ -901,7 +910,7 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
             <IconInfo size={13} />
             Use organization-approved credentials for audit-safe access.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

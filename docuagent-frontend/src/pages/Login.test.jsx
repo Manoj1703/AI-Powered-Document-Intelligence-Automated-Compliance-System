@@ -22,10 +22,10 @@ describe("Login captcha flow", () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  it("shows captcha configuration warning when key is missing", () => {
+  it("shows local development info when captcha is disabled", () => {
     const onLogin = vi.fn();
     render(<Login onLogin={onLogin} turnstileSiteKeyOverride="" />);
 
-    expect(screen.getByText(/Captcha is not configured\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Captcha is disabled for local development\./i)).toBeInTheDocument();
   });
 });

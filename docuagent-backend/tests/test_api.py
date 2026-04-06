@@ -64,7 +64,7 @@ class ApiTests(unittest.TestCase):
         app.dependency_overrides.pop(get_current_user, None)
 
     def test_healthcheck(self):
-        response = self.client.get("/")
+        response = self.client.get("/api/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok", "service": "DocuAgent Backend"})
 

@@ -64,6 +64,28 @@ Open the app at:
 http://localhost:5173
 ```
 
+## Single-Service Deploy
+
+For deployment, the backend can now serve the built frontend directly from the same app.
+
+Build the frontend first:
+
+```bash
+npm run build
+```
+
+Then run only the backend service:
+
+```bash
+python -m uvicorn app.main:app --app-dir docuagent-backend --host 0.0.0.0 --port 8003
+```
+
+In this mode:
+
+- `/` serves the React app
+- `/api/*` serves the FastAPI backend
+- direct frontend routes like `/documents` and `/users` fall back to `index.html`
+
 ## Important Notes
 
 - The frontend already defaults to `http://localhost:8003`, so no frontend env file is required for normal local use.
