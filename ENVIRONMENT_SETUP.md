@@ -15,10 +15,10 @@ Put them in:
 docuagent-backend/.env
 ```
 
-The frontend does not require a local env file for standard use because it already defaults to:
+The frontend does not require a local env file for standard use because it defaults to the current browser host on port `8003` when `VITE_API_BASE_URL` is unset.
 
 ```env
-VITE_API_BASE_URL=http://localhost:8003
+VITE_API_BASE_URL=http://<current-browser-host>:8003
 ```
 
 ## Optional Local Variables
@@ -59,4 +59,6 @@ npm run dev
 
 ## Production Note
 
-For production deployment, set a real `JWT_SECRET`. The built-in fallback is only for local development convenience.
+For production deployment, set a real `JWT_SECRET`.
+If you deploy the frontend and backend on the same host, the frontend can usually talk to the backend without a custom `VITE_API_BASE_URL`.
+Turnstile is optional and can be enabled by setting both `VITE_TURNSTILE_SITE_KEY` in the frontend and `TURNSTILE_SECRET_KEY` in the backend.
