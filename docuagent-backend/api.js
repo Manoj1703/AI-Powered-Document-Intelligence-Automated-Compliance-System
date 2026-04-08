@@ -138,11 +138,11 @@ export async function registerUser({ username, email, password, role, newAdminKe
   return parseOrThrow(response, "Register failed");
 }
 
-export async function loginUser({ identifier, password, turnstileToken }) {
+export async function loginUser({ identifier, password }) {
   const response = await apiFetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier, password, turnstile_token: turnstileToken }),
+    body: JSON.stringify({ identifier, password }),
   });
   return parseOrThrow(response, "Login failed");
 }
