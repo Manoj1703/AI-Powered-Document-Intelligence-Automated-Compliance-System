@@ -10,6 +10,12 @@ describe("resolveApiBaseUrl", () => {
     expect(resolveApiBaseUrl("", { protocol: "http:", hostname: "13.62.128.112" })).toBe("http://13.62.128.112:8003");
   });
 
+  it("rewrites loopback env values to the current browser host in deployed builds", () => {
+    expect(resolveApiBaseUrl("http://localhost:8003", { protocol: "http:", hostname: "13.62.128.112" })).toBe(
+      "http://13.62.128.112:8003",
+    );
+  });
+
   it("falls back to localhost outside the browser", () => {
     expect(resolveApiBaseUrl("", null)).toBe("http://localhost:8003");
   });
