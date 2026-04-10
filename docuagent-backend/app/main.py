@@ -100,7 +100,10 @@ async def security_headers_middleware(request: Request, call_next):
         if _is_db_unavailable(exc):
             return JSONResponse(
                 status_code=503,
-                content={"error": "Database unavailable. Please check internet/DNS and MongoDB connectivity."},
+                content={
+                    "detail": "Database unavailable. Please check internet/DNS and MongoDB connectivity.",
+                    "error": "Database unavailable. Please check internet/DNS and MongoDB connectivity.",
+                },
             )
         raise
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -115,12 +118,15 @@ async def global_exception_handler(_request: Request, exc: Exception):
     if _is_db_unavailable(exc):
         return JSONResponse(
             status_code=503,
-            content={"error": "Database unavailable. Please check internet/DNS and MongoDB connectivity."},
+            content={
+                "detail": "Database unavailable. Please check internet/DNS and MongoDB connectivity.",
+                "error": "Database unavailable. Please check internet/DNS and MongoDB connectivity.",
+            },
         )
 
     # If SHOW_TRACEBACK=true, include full traceback in error response.
     show_trace = os.getenv("SHOW_TRACEBACK", "false").lower() == "true"
-    content = {"error": str(exc)}
+    content = {"detail": str(exc), "error": str(exc)}
     if show_trace:
         content["trace"] = traceback.format_exc()
     return JSONResponse(status_code=500, content=content)

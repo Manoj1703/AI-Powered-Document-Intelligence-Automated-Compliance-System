@@ -89,7 +89,7 @@ async function authFetch(path, token, options = {}) {
 }
 
 function toErrorMessage(data, fallbackPrefix, status) {
-  const detail = data?.detail;
+  const detail = data?.detail ?? data?.error;
   if (typeof detail === "string" && detail.trim()) return detail;
   if (Array.isArray(detail) && detail.length > 0) {
     const parts = detail
