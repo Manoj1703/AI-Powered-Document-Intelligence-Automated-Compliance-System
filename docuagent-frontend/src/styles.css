@@ -2660,26 +2660,6 @@ html {
   gap: 14px;
 }
 
-.green-turnstile {
-  display: flex;
-  justify-content: center;
-  margin-top: 2px;
-}
-
-.green-captcha-wrap {
-  display: grid;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.green-captcha-label {
-  margin: 0;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #67e8f9;
-}
-
 .green-field {
   position: relative;
 }

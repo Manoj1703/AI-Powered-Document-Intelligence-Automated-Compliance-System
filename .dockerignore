@@ -1,0 +1,14 @@
+.git
+.gitignore
+node_modules
+dist
+previous-version
+manoj-portfolio
+postman
+docuagent-frontend
+docuagent-backend/.venv
+docuagent-backend/.venv311
+docuagent-backend/.pytest_cache
+docuagent-backend/.tmp
+docuagent-backend/__pycache__
+docuagent-backend/.env

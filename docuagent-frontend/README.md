@@ -25,17 +25,16 @@
    npm run dev
    ```
 
-For local use, no frontend env file is required if the backend runs on `http://localhost:8003`.
+For local use, no frontend env file is required if the backend runs on the same machine. The frontend will default to the current browser host on port `8003` when `VITE_API_BASE_URL` is not set.
 
 ## Environment (`docuagent-frontend/.env`)
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8003
-VITE_TURNSTILE_SITE_KEY=
 ```
 
-- `VITE_API_BASE_URL` defaults to `http://localhost:8003` if unset.
-- `VITE_TURNSTILE_SITE_KEY` is optional and enables captcha on login.
+- `VITE_API_BASE_URL` defaults to `http://<current-browser-host>:8003` if unset, which is useful for EC2-style deployments.
+- If a deployed build still contains `http://localhost:8003`, the frontend rewrites it to the current browser host automatically.
 
 ## Tests
 
@@ -44,7 +43,6 @@ npm run test:run
 ```
 
 Test suite includes:
-- Login captcha validation behavior
 - Document insights modal behavior/accessibility
 - Documents filter behavior
 

@@ -195,7 +195,6 @@ function App() {
     const loginResult = await loginUser({
       identifier: payload.identifier,
       password: payload.password,
-      turnstileToken: payload.turnstileToken,
     });
     const user = {
       ...loginResult.user,

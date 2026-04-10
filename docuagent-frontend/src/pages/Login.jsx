@@ -271,120 +271,7 @@ function PasswordStrengthBar({ score, label }) {
   );
 }
 
-function TurnstileWidget({ siteKey, resetSignal, onTokenChange, onError }) {
-  const containerRef = useRef(null);
-  const widgetIdRef = useRef(null);
-  const onTokenChangeRef = useRef(onTokenChange);
-  const onErrorRef = useRef(onError);
-
-  useEffect(() => {
-    onTokenChangeRef.current = onTokenChange;
-  }, [onTokenChange]);
-
-  useEffect(() => {
-    onErrorRef.current = onError;
-  }, [onError]);
-
-  useEffect(() => {
-    if (!siteKey || !containerRef.current) return undefined;
-
-    let disposed = false;
-    let scriptPollId = null;
-    const scriptId = "cf-turnstile-api-script";
-
-    const renderWidget = () => {
-      if (disposed || !containerRef.current || !window.turnstile) return;
-      if (widgetIdRef.current !== null) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-      containerRef.current.innerHTML = "";
-      widgetIdRef.current = window.turnstile.render(containerRef.current, {
-        sitekey: siteKey,
-        action: "login",
-        callback: (token) => onTokenChangeRef.current(String(token || "")),
-        "expired-callback": () => onTokenChangeRef.current(""),
-        "timeout-callback": () => {
-          onTokenChangeRef.current("");
-          if (onErrorRef.current) onErrorRef.current("Captcha timed out. Please try again.");
-        },
-        "unsupported-callback": () => {
-          onTokenChangeRef.current("");
-          if (onErrorRef.current) onErrorRef.current("Captcha is unsupported in this browser/device.");
-        },
-        "error-callback": () => {
-          onTokenChangeRef.current("");
-          if (onErrorRef.current) onErrorRef.current("Captcha failed to load. Refresh and try again.");
-        },
-      });
-    };
-
-    const ensureScript = () =>
-      new Promise((resolve, reject) => {
-        if (window.turnstile) {
-          resolve();
-          return;
-        }
-        let script = document.getElementById(scriptId);
-        if (!script) {
-          script = document.createElement("script");
-          script.id = scriptId;
-          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-          script.async = true;
-          script.defer = true;
-          document.head.appendChild(script);
-        }
-        const onLoad = () => resolve();
-        const onScriptError = () => reject(new Error("Failed to load Turnstile script"));
-        script.addEventListener("load", onLoad, { once: true });
-        script.addEventListener("error", onScriptError, { once: true });
-        const startedAt = Date.now();
-        scriptPollId = window.setInterval(() => {
-          if (window.turnstile) {
-            window.clearInterval(scriptPollId);
-            scriptPollId = null;
-            resolve();
-            return;
-          }
-          if (Date.now() - startedAt > 6000) {
-            window.clearInterval(scriptPollId);
-            scriptPollId = null;
-            reject(new Error("Turnstile script load timeout"));
-          }
-        }, 80);
-      });
-
-    ensureScript().then(renderWidget).catch(() => {
-      if (onErrorRef.current) onErrorRef.current("Captcha failed to load. Refresh and try again.");
-    });
-
-    return () => {
-      disposed = true;
-      if (scriptPollId !== null) {
-        window.clearInterval(scriptPollId);
-        scriptPollId = null;
-      }
-      if (widgetIdRef.current !== null && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-    };
-  }, [siteKey]);
-
-  useEffect(() => {
-    if (widgetIdRef.current !== null && window.turnstile) {
-      window.turnstile.reset(widgetIdRef.current);
-      onTokenChangeRef.current("");
-    }
-  }, [resetSignal]);
-
-  return <div ref={containerRef} className="green-turnstile" />;
-}
-
-function Login({ onLogin, turnstileSiteKeyOverride }) {
-  const turnstileSiteKey = String(
-    turnstileSiteKeyOverride ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "",
-  ).trim();
+function Login({ onLogin }) {
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -403,8 +290,6 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [capsOn, setCapsOn] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
   const [fieldFeedback, setFieldFeedback] = useState({});
   const [signupMeta, setSignupMeta] = useState({
     admin_exists: false,
@@ -455,7 +340,6 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
   function validateForm() {
     if (!password.trim()) return "Password is required.";
     if (mode === "login" && !identifier.trim()) return "Email or username is required.";
-    if (mode === "login" && turnstileSiteKey && !turnstileToken.trim()) return "Please complete the captcha challenge.";
     if (mode === "register" && !username.trim()) return "Username is required.";
     if (mode === "register" && !email.trim()) return "Email is required.";
     if (mode === "register" && !isEmailLike(email)) return "Enter a valid email address.";
@@ -521,7 +405,6 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
         username,
         email,
         password,
-        turnstileToken: turnstileToken.trim(),
         remember,
         mode,
         role,
@@ -547,10 +430,6 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
       }
     } catch (err) {
       setError(err.message || "Authentication failed");
-      if (mode === "login") {
-        setTurnstileToken("");
-        setTurnstileResetSignal((prev) => prev + 1);
-      }
     } finally {
       setSubmitting(false);
     }
@@ -665,23 +544,6 @@ function Login({ onLogin, turnstileSiteKeyOverride }) {
                     {showLoginPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
                   </button>
                 </label>
-                {turnstileSiteKey && (
-                  <div className="green-captcha-wrap">
-                    <p className="green-captcha-label">Security Check</p>
-                    <TurnstileWidget
-                      siteKey={turnstileSiteKey}
-                      resetSignal={turnstileResetSignal}
-                      onTokenChange={setTurnstileToken}
-                      onError={(msg) => setError(msg || "Captcha failed to load. Refresh and try again.")}
-                    />
-                  </div>
-                )}
-                {!turnstileSiteKey && (
-                  <span className="green-inline-msg bad" role="alert" aria-live="polite">
-                    <IconAlert size={12} />
-                    Captcha is not configured. Set VITE_TURNSTILE_SITE_KEY in frontend env.
-                  </span>
-                )}
               </>
             )}
 

@@ -1,17 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 test("login flow with mocked API", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.turnstile = {
-      render(_element, options) {
-        window.setTimeout(() => options?.callback?.("mock-turnstile-token"), 0);
-        return "mock-widget-id";
-      },
-      reset() {},
-      remove() {},
-    };
-  });
-
   await page.route("**/api/auth/me", async (route) => {
     await route.fulfill({
       status: 401,

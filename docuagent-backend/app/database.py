@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 # This file sets up the connection to MongoDB and provides a helper function to access the collection.
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -6,13 +8,17 @@ from pymongo.collection import Collection
 from pymongo.errors import ConfigurationError
 import dns.resolver
 
-# read environment variables
-load_dotenv()
+# Load .env from the backend root so startup works from any working directory.
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(dotenv_path=_BACKEND_ROOT / ".env")
 
 MONGO_URI = os.getenv("MONGO_URI")
 
 if not MONGO_URI:
-    raise Exception("MONGO_URI is not configured.")
+    raise RuntimeError(
+        "MONGO_URI is not configured. Set it in the environment or in "
+        f"{_BACKEND_ROOT / '.env'}."
+    )
 
 class DatabaseUnavailableError(RuntimeError):
     pass

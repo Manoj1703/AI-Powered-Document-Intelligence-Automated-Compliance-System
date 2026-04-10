@@ -16,7 +16,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-before-production-2026}
       APP_ENV: ${APP_ENV:-development}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8003,http://127.0.0.1:8003}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       SHOW_TRACEBACK: ${SHOW_TRACEBACK:-false}
     ports:
       - "8003:8003"

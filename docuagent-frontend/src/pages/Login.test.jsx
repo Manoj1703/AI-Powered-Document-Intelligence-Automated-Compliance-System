@@ -3,11 +3,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 import Login from "./Login";
 
-describe("Login captcha flow", () => {
-  it("requires captcha token when site key is configured", async () => {
+describe("Login form", () => {
+  it("submits a login request", async () => {
     const onLogin = vi.fn().mockResolvedValue({ justRegistered: false });
 
-    render(<Login onLogin={onLogin} turnstileSiteKeyOverride="test-site-key" />);
+    render(<Login onLogin={onLogin} />);
 
     fireEvent.change(screen.getByLabelText(/Email or Username/i), {
       target: { value: "admin@example.com" },
@@ -18,14 +18,13 @@ describe("Login captcha flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Login$/i }));
 
-    expect(await screen.findByText(/Please complete the captcha challenge\./i)).toBeInTheDocument();
-    expect(onLogin).not.toHaveBeenCalled();
-  });
-
-  it("shows captcha configuration warning when key is missing", () => {
-    const onLogin = vi.fn();
-    render(<Login onLogin={onLogin} turnstileSiteKeyOverride="" />);
-
-    expect(screen.getByText(/Captcha is not configured\./i)).toBeInTheDocument();
+    await screen.findByText(/Use organization-approved credentials/i);
+    expect(onLogin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "admin@example.com",
+        password: "Admin@123",
+        mode: "login",
+      }),
+    );
   });
 });

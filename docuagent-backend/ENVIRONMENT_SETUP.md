@@ -62,3 +62,5 @@ npm run dev
 For production deployment, set a real `JWT_SECRET`.
 If you deploy the frontend and backend on the same host, the frontend can usually talk to the backend without a custom `VITE_API_BASE_URL`.
 Turnstile is optional and can be enabled by setting both `VITE_TURNSTILE_SITE_KEY` in the frontend and `TURNSTILE_SECRET_KEY` in the backend.
+If a deployed frontend bundle still contains `http://localhost:8003`, the app rewrites that loopback URL to the current browser host automatically.
+For a single-port deployment, run `npm run build` in `docuagent-frontend` and serve the built `dist` folder from the backend on port `8003`.

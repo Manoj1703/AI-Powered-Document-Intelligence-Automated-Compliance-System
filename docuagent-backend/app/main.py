@@ -1,10 +1,12 @@
 # This file starts the backend server.
 # It creates the FastAPI app and connects all route files.
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 import os
 import traceback
@@ -24,6 +26,11 @@ except ModuleNotFoundError as exc:
     from routes import auth, dashboard, documents, upload, users
 
 
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = _BACKEND_ROOT.parent
+_FRONTEND_DIST = _PROJECT_ROOT / "docuagent-frontend" / "dist"
+
+
 def _cors_origins() -> list[str]:
     raw = str(os.getenv("CORS_ORIGINS") or "").strip()
     if raw:
@@ -35,8 +42,9 @@ def _cors_origins() -> list[str]:
 
 
 def _cors_origin_regex() -> str:
-    # Allow local dev frontends even when Vite auto-switches ports (5174, 5175, etc.).
-    return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    # Allow local dev frontends and browser origins served from a public host/IP.
+    # Exact production origins can still be locked down with CORS_ORIGINS.
+    return r"^https?://([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*|\d{1,3}(?:\.\d{1,3}){3})(:\d+)?$"
 
 
 def _is_db_unavailable(exc: Exception) -> bool:
@@ -72,7 +80,7 @@ app.add_middleware(
 
 
 # Healthcheck API: confirms backend is running.
-@app.get("/")
+@app.get("/api/health")
 def healthcheck():
     return {"status": "ok", "service": "DocuAgent Backend"}
 
@@ -118,3 +126,19 @@ app.include_router(documents.router)
 app.include_router(dashboard.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+
+
+if _FRONTEND_DIST.exists():
+    # Serve the built React app from the same public port as the API.
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+else:
+    @app.get("/")
+    def frontend_not_built():
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "ok",
+                "service": "DocuAgent Backend",
+                "message": "Frontend build not found. Run `npm run build` in docuagent-frontend before deployment.",
+            },
+        )

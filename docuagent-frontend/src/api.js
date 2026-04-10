@@ -1,4 +1,37 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8003";
+const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8003";
+
+function isLoopbackHostname(hostname) {
+  const value = String(hostname || "").trim().toLowerCase();
+  return value === "localhost" || value === "127.0.0.1" || value === "::1";
+}
+
+export function resolveApiBaseUrl(explicitBaseUrl = "", locationLike = typeof window !== "undefined" ? window.location : null) {
+  const configuredBaseUrl = String(explicitBaseUrl || "").trim();
+  if (configuredBaseUrl) {
+    try {
+      const parsed = new URL(configuredBaseUrl);
+      const browserHostname = String(locationLike?.hostname || "").trim();
+      if (browserHostname && !isLoopbackHostname(browserHostname) && isLoopbackHostname(parsed.hostname)) {
+        const protocol = String(locationLike?.protocol || parsed.protocol || "http:").replace(/:$/, "");
+        const port = parsed.port || "8003";
+        return `${protocol}://${browserHostname}:${port}`;
+      }
+    } catch {
+      // Fall through to the configured value if parsing fails.
+    }
+    return configuredBaseUrl;
+  }
+
+  if (locationLike && typeof locationLike.hostname === "string" && locationLike.hostname.trim()) {
+    const protocol = String(locationLike.protocol || "http:").replace(/:$/, "");
+    const hostname = locationLike.hostname.trim();
+    return `${protocol}://${hostname}:8003`;
+  }
+
+  return DEFAULT_LOCAL_API_BASE_URL;
+}
+
+const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const FALLBACK_API_BASE_URL = API_BASE_URL.includes("localhost")
   ? API_BASE_URL.replace("localhost", "127.0.0.1")
   : API_BASE_URL.includes("127.0.0.1")
@@ -21,7 +54,7 @@ function _networkError(baseUrl) {
     }
   })();
   return new Error(
-    `Backend is not reachable at ${baseUrl}. Start the API server and retry. Expected local endpoint: ${detail}.`,
+    `Backend is not reachable at ${baseUrl}. Start the API server and retry. Expected API endpoint: ${detail}.`,
   );
 }
 
@@ -85,7 +118,7 @@ async function parseOrThrow(response, fallbackPrefix) {
 }
 
 export async function fetchHealth() {
-  const response = await apiFetch("/");
+  const response = await apiFetch("/api/health");
   return parseOrThrow(response, "Health API failed");
 }
 
@@ -105,11 +138,11 @@ export async function registerUser({ username, email, password, role, newAdminKe
   return parseOrThrow(response, "Register failed");
 }
 
-export async function loginUser({ identifier, password, turnstileToken }) {
+export async function loginUser({ identifier, password }) {
   const response = await apiFetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier, password, turnstile_token: turnstileToken }),
+    body: JSON.stringify({ identifier, password }),
   });
   return parseOrThrow(response, "Login failed");
 }

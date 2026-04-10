@@ -10,7 +10,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: 'cmd /c "set VITE_API_BASE_URL=http://127.0.0.1:4173&& set VITE_TURNSTILE_SITE_KEY=&& npm run dev -- --host 127.0.0.1 --port 4173"',
+    command: 'cmd /c "set VITE_API_BASE_URL=http://127.0.0.1:4173&& npm run dev -- --host 127.0.0.1 --port 4173"',
     url: "http://127.0.0.1:4173",
     reuseExistingServer: true,
     timeout: 120_000,

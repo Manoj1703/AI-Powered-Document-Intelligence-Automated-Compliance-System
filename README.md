@@ -54,10 +54,10 @@ http://localhost:5173
 
 ## Important Notes
 
-- The frontend already defaults to `http://localhost:8003`, so no frontend env file is required for normal local use.
+- The frontend defaults to the current browser host on port `8003`, so no frontend env file is required for normal local use or single-host deployments.
+- For a single-port deployment, build the frontend with `npm run build` and run the backend on port `8003`; FastAPI serves the built UI from the same host.
 - In local development, the backend uses a built-in dev JWT secret if `JWT_SECRET` is not set.
 - For production, set a real `JWT_SECRET`.
-- Turnstile captcha is optional. If you do not set it, login still works locally.
 
 ## Main Features
 
