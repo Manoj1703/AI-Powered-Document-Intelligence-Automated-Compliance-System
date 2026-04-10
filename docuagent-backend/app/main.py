@@ -28,7 +28,10 @@ except ModuleNotFoundError as exc:
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _PROJECT_ROOT = _BACKEND_ROOT.parent
-_FRONTEND_DIST = _PROJECT_ROOT / "docuagent-frontend" / "dist"
+_FRONTEND_DIST_CANDIDATES = [
+    _PROJECT_ROOT / "docuagent-frontend" / "dist",
+    _PROJECT_ROOT / "dist",
+]
 
 
 def _cors_origins() -> list[str]:
@@ -128,7 +131,9 @@ app.include_router(auth.router)
 app.include_router(users.router)
 
 
-if _FRONTEND_DIST.exists():
+_FRONTEND_DIST = next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
+
+if _FRONTEND_DIST is not None:
     # Serve the built React app from the same public port as the API.
     app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
 else:
