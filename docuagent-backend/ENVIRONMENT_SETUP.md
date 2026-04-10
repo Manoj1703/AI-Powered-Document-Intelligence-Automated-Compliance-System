@@ -64,4 +64,4 @@ If you deploy the frontend and backend on the same host, the frontend can usuall
 Turnstile is optional and can be enabled by setting both `VITE_TURNSTILE_SITE_KEY` in the frontend and `TURNSTILE_SECRET_KEY` in the backend.
 If a deployed frontend bundle still contains `http://localhost:8003`, the app rewrites that loopback URL to the current browser host automatically.
 For a single-port deployment, run `npm run build` in `docuagent-frontend` and serve the built `dist` folder from the backend on port `8003`.
-If you use Docker, `docker compose up --build` will rebuild the frontend bundle into the image and keep the UI current on the same port.
+If you use Docker, `docker compose up --build` will rebuild the frontend bundle into the image and keep the UI current on the same port. MongoDB can remain internal to the Docker network, so only port `8003` needs to be public.
