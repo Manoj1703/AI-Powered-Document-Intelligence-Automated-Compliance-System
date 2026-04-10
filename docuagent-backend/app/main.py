@@ -5,8 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 
 import os
 import traceback
@@ -33,6 +32,10 @@ _FRONTEND_DIST_CANDIDATES = [
     _PROJECT_ROOT / "docuagent-frontend" / "dist",
     _PROJECT_ROOT / "dist",
 ]
+
+
+def _get_frontend_dist() -> Path | None:
+    return next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
 
 
 def _cors_origins() -> list[str]:
@@ -132,19 +135,36 @@ app.include_router(auth.router)
 app.include_router(users.router)
 
 
-_FRONTEND_DIST = next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
+def _frontend_build_missing() -> JSONResponse:
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "service": "DocuAgent Backend",
+            "message": "Frontend build not found. Run `npm run build` in docuagent-frontend before deployment.",
+        },
+    )
 
-if _FRONTEND_DIST is not None:
-    # Serve the built React app from the same public port as the API.
-    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
-else:
-    @app.get("/")
-    def frontend_not_built():
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "ok",
-                "service": "DocuAgent Backend",
-                "message": "Frontend build not found. Run `npm run build` in docuagent-frontend before deployment.",
-            },
-        )
+
+@app.get("/", include_in_schema=False)
+@app.get("/{path_name:path}", include_in_schema=False)
+def frontend_spa(path_name: str = ""):
+    frontend_dist = _get_frontend_dist()
+    if frontend_dist is None:
+        return _frontend_build_missing()
+
+    if path_name:
+        candidate = (frontend_dist / path_name).resolve()
+        try:
+            candidate.relative_to(frontend_dist.resolve())
+        except ValueError:
+            candidate = None
+
+        if candidate is not None and candidate.is_file():
+            return FileResponse(candidate)
+
+    index_file = frontend_dist / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+
+    return _frontend_build_missing()
