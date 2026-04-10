@@ -29,6 +29,7 @@ except ModuleNotFoundError as exc:
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _PROJECT_ROOT = _BACKEND_ROOT.parent
 _FRONTEND_DIST_CANDIDATES = [
+    _PROJECT_ROOT / "frontend" / "dist",
     _PROJECT_ROOT / "docuagent-frontend" / "dist",
     _PROJECT_ROOT / "dist",
 ]
