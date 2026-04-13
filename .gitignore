@@ -1,3 +1,6 @@
 node_modules
 dist
 .env
+aidoc 2/
+package-lock - Copy.json
+SMOKE_TEST_REPORT - Copy.md

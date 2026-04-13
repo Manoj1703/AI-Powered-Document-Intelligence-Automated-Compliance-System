@@ -5,37 +5,20 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
 
 import os
 import traceback
 
-# Import API route modules.
-# Fallback import supports running in different project structures.
-try:
-    from app.auth import ensure_admin_user
-    from app.database import DatabaseUnavailableError
-    from app.routes import auth, dashboard, documents, upload, users
-except ModuleNotFoundError as exc:
-    # Only use fallback when package-style import is unavailable.
-    if exc.name not in {"app", "app.routes", "app.auth", "app.database"}:
-        raise
-    from auth import ensure_admin_user
-    from database import DatabaseUnavailableError
-    from routes import auth, dashboard, documents, upload, users
+from app.auth import ensure_admin_user
+from app.database import DatabaseUnavailableError
+from app.routes import auth, dashboard, documents, upload, users
 
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _PROJECT_ROOT = _BACKEND_ROOT.parent
-_FRONTEND_DIST_CANDIDATES = [
-    _PROJECT_ROOT / "frontend" / "dist",
-    _PROJECT_ROOT / "docuagent-frontend" / "dist",
-    _PROJECT_ROOT / "dist",
-]
-
-
-def _get_frontend_dist() -> Path | None:
-    return next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
+_FRONTEND_DIST = _PROJECT_ROOT / "docuagent-frontend" / "dist"
 
 
 def _cors_origins() -> list[str]:
@@ -65,7 +48,7 @@ def _is_db_unavailable(exc: Exception) -> bool:
 async def lifespan(_app: FastAPI):
     # Ensure the unique admin account exists if configured via env.
     try:
-      ensure_admin_user()
+        ensure_admin_user()
     except Exception as exc:
       # Allow API process to start even when DB is temporarily unreachable.
       print(f"[startup-warning] ensure_admin_user skipped: {exc}")
@@ -155,21 +138,20 @@ def _frontend_build_missing() -> JSONResponse:
 @app.get("/", include_in_schema=False)
 @app.get("/{path_name:path}", include_in_schema=False)
 def frontend_spa(path_name: str = ""):
-    frontend_dist = _get_frontend_dist()
-    if frontend_dist is None:
+    if not _FRONTEND_DIST.exists():
         return _frontend_build_missing()
 
     if path_name:
-        candidate = (frontend_dist / path_name).resolve()
+        candidate = (_FRONTEND_DIST / path_name).resolve()
         try:
-            candidate.relative_to(frontend_dist.resolve())
+            candidate.relative_to(_FRONTEND_DIST.resolve())
         except ValueError:
             candidate = None
 
         if candidate is not None and candidate.is_file():
             return FileResponse(candidate)
 
-    index_file = frontend_dist / "index.html"
+    index_file = _FRONTEND_DIST / "index.html"
     if index_file.is_file():
         return FileResponse(index_file)
 
