@@ -23,11 +23,12 @@ function mapToBackendRole(value) {
   return "user";
 }
 
-function CustomDropdown({ value, onChange }) {
+function CustomDropdown({ value, onChange, adminExists = false }) {
   const [open, setOpen] = useState(false);
   const [hoveredOption, setHoveredOption] = useState(null);
   const wrapRef = useRef(null);
   const selected = ROLE_OPTIONS.find((item) => item.value === value) || ROLE_OPTIONS[0];
+  const adminLocked = adminExists;
 
   useEffect(() => {
     function onDocClick(event) {
@@ -38,6 +39,7 @@ function CustomDropdown({ value, onChange }) {
   }, []);
 
   function choose(next) {
+    if (adminLocked && next.value === "admin") return;
     setOpen(false);
     onChange(next.value, mapToBackendRole(next.value));
   }
@@ -68,19 +70,22 @@ function CustomDropdown({ value, onChange }) {
       <ul className={`authx-dropdown-list ${open ? "is-open" : ""}`} role="listbox">
         {options.map((item) => (
           <li key={item.value}>
-            <button
-              type="button"
-              className={`authx-dropdown-option ${value === item.value ? "is-selected" : ""}`}
-              onClick={() => choose(item)}
-              onMouseEnter={() => setHoveredOption(item)}
-              onMouseLeave={() => setHoveredOption(null)}
-              role="option"
-              aria-selected={value === item.value}
-            >
-              <span className="authx-option-icon" style={{ color: item.color }}>
-                <item.Icon size={16} />
-              </span>
-              <span className="authx-option-label">{item.label}</span>
+          <button
+            type="button"
+            className={`authx-dropdown-option ${value === item.value ? "is-selected" : ""} ${
+              adminLocked && item.value === "admin" ? "is-disabled" : ""
+            }`}
+            onClick={() => choose(item)}
+            onMouseEnter={() => setHoveredOption(item)}
+            onMouseLeave={() => setHoveredOption(null)}
+            role="option"
+            aria-selected={value === item.value}
+            disabled={adminLocked && item.value === "admin"}
+          >
+            <span className="authx-option-icon" style={{ color: item.color }}>
+              <item.Icon size={16} />
+            </span>
+            <span className="authx-option-label">{item.label}</span>
               {value === item.value && (
                 <span className="authx-option-check">
                   <IconCheck size={14} />
@@ -90,6 +95,7 @@ function CustomDropdown({ value, onChange }) {
           </li>
         ))}
       </ul>
+      {adminLocked && <div className="authx-dropdown-note">Admin registration is currently locked. Super admins can still manage roles after signup.</div>}
     </div>
   );
 }

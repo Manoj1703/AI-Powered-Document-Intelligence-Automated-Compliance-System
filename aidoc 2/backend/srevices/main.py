@@ -28,10 +28,26 @@ except ModuleNotFoundError as exc:
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _PROJECT_ROOT = _BACKEND_ROOT.parent
-_FRONTEND_DIST_CANDIDATES = [
-    _PROJECT_ROOT / "frontend" / "dist",
-    _PROJECT_ROOT / "dist",
-]
+
+
+def _frontend_roots() -> list[Path]:
+    roots: list[Path] = []
+    seen: set[Path] = set()
+    for anchor in (Path(__file__).resolve().parent, Path.cwd().resolve()):
+        for root in (anchor, *anchor.parents):
+            if root in seen:
+                continue
+            seen.add(root)
+            roots.append(root)
+    return roots
+
+
+def _get_frontend_dist() -> Path | None:
+    for root in _frontend_roots():
+        for candidate in (root / "frontend" / "dist", root / "dist"):
+            if candidate.is_dir():
+                return candidate
+    return None
 
 
 def _cors_origins() -> list[str]:
@@ -131,7 +147,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 
 
-_FRONTEND_DIST = next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
+_FRONTEND_DIST = _get_frontend_dist()
 
 if _FRONTEND_DIST is not None:
     # Serve the built React app from the same public port as the API.

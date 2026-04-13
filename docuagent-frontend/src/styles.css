@@ -3827,9 +3827,22 @@ html {
   background: rgba(115, 164, 229, 0.2);
 }
 
+.authx-dropdown-option.is-disabled,
+.authx-dropdown-option:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .authx-dropdown-option.is-selected {
   background: #284971 !important;
   color: #f2f7ff;
+}
+
+.authx-dropdown-note {
+  margin-top: 6px;
+  color: #8ca7cc;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .authx-meta {

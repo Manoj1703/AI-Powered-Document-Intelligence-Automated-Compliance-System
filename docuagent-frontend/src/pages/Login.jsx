@@ -317,6 +317,16 @@ function Login({ onLogin }) {
   }, [mode]);
 
   useEffect(() => {
+    if (mode !== "register") return;
+    if (!signupMeta.admin_exists) return;
+    if (role !== "admin") return;
+
+    setRoleUi("user");
+    setRole("user");
+    setNewAdminKey("");
+  }, [mode, role, signupMeta.admin_exists]);
+
+  useEffect(() => {
     setError("");
     setInfo("");
     setFieldFeedback({});

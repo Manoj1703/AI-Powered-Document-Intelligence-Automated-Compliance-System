@@ -26,14 +26,29 @@ except ModuleNotFoundError as exc:
 
 _BACKEND_ROOT = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BACKEND_ROOT.parent
-_FRONTEND_DIST_CANDIDATES = [
-    _PROJECT_ROOT / "frontend" / "dist",
-    _PROJECT_ROOT / "dist",
-]
+
+
+def _frontend_roots() -> list[Path]:
+    # Look in the module tree first, then the current working directory.
+    # This keeps the app resilient when Uvicorn is started from a sibling checkout
+    # or from a different app directory.
+    roots: list[Path] = []
+    seen: set[Path] = set()
+    for anchor in (Path(__file__).resolve().parent, Path.cwd().resolve()):
+        for root in (anchor, *anchor.parents):
+            if root in seen:
+                continue
+            seen.add(root)
+            roots.append(root)
+    return roots
 
 
 def _get_frontend_dist() -> Path | None:
-    return next((path for path in _FRONTEND_DIST_CANDIDATES if path.exists()), None)
+    for root in _frontend_roots():
+        for candidate in (root / "frontend" / "dist", root / "dist"):
+            if candidate.is_dir():
+                return candidate
+    return None
 
 
 def _is_db_unavailable(exc: Exception) -> bool:

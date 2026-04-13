@@ -26,24 +26,15 @@ MONGO_URI=<your-mongodb-uri>
 OPENAI_API_KEY=<your-openai-key>
 ```
 
-Then start the backend and frontend.
+Then start the backend. FastAPI serves the checked-in frontend bundle from the same `uvicorn` process.
 
 ## Run Locally
 
-Backend:
+Single-command run:
 
 ```bash
 cd docuagent-backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8003
-```
-
-Frontend:
-
-```bash
-cd docuagent-frontend
-npm install
-npm run dev
+uvicorn main:app --reload --port 8003
 ```
 
 Open the app at:
@@ -55,8 +46,8 @@ http://localhost:5173
 ## Important Notes
 
 - The frontend defaults to the current browser host on port `8003`, so no frontend env file is required for normal local use or single-host deployments.
-- For a single-port deployment, build the frontend with `npm run build` and run the backend on port `8003`; FastAPI serves the built UI from the same host.
-- If you deploy with Docker, `docker compose up --build` now builds the frontend bundle into the image and serves the current UI from the same `8003` port. MongoDB stays internal to the Docker network and does not need a public host port.
+- `docuagent-frontend/dist` is checked in and FastAPI serves it directly, so no separate frontend build step is needed for local runs.
+- If you deploy with Docker, `docker compose up --build` serves the current UI from the same `8003` port. MongoDB stays internal to the Docker network and does not need a public host port.
 - In local development, the backend uses a built-in dev JWT secret if `JWT_SECRET` is not set.
 - For production, set a real `JWT_SECRET`.
 
